@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     name: Build for Python ${{ matrix.python }} with CUDA ${{ matrix.cuda }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python:
