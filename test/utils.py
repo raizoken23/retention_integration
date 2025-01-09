@@ -4,8 +4,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 from einops import rearrange
-from packages.state_kernel.state_kernel.power_full import PowerAttentionKernel
-# from state_kernel.power_attention import SymmetricStateKernel
+from power_attention.power_full import PowerAttentionKernel
+# from power_attention.power_attention import SymmetricStateKernel
 from torch.utils._pytree import tree_map
 
 def configs(shape, chunk_sizes, dtypes, degs, εs, ref_dtype=None):

@@ -2,15 +2,15 @@ import torch
 import os
 
 from einops import rearrange
-from packages.state_kernel.state_kernel.power_full import PowerAttentionKernel
-from state_kernel.chunk_state import symmetric_power_chunk_state, ExpandedDim
-from state_kernel.query_state import symmetric_power_query_state
-from state_kernel.attention import symmetric_power_attention
+from power_attention.power_full import PowerAttentionKernel
+from power_attention.chunk_state import symmetric_power_chunk_state, ExpandedDim
+from power_attention.query_state import symmetric_power_query_state
+from power_attention.attention import symmetric_power_attention
 from torch.utils._pytree import tree_map
 import torch.nn.functional as F
 
 from flash_attn import flash_attn_func
-from state_kernel_cuda import discumsum, discumsum_bwd
+from power_attention_cuda import discumsum, discumsum_bwd
 
 def create_QKVR(b, t, h, d, dtype, gating=False, log_gating=True, chunk_size=None, device='cuda'):
     """Create random Q, K, V tensors, optionally with gating coefficients"""
@@ -185,7 +185,7 @@ if __name__ == '__main__':
 
 
 # import torch
-# from packages.state_kernel.state_kernel.power_attention import PowerAttentionKernel
+# from power_attention.power_attention import PowerAttentionKernel
 
 # def f(Q, K, V, log_G, Y_grad, d):
 #     pa = PowerAttentionKernel(d, 2, 0.001, torch.float16)

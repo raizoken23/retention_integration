@@ -1,7 +1,7 @@
 import math
 import torch
 from torch.utils._pytree import tree_map
-from state_kernel.interface import SymmetricStateKernel
+from power_attention.interface import SymmetricStateKernel
 from flash_attn_manifest.flash_attn_interface import flash_attn_func, SYMPOWER, SOFTMAX
 from einops import rearrange
 from test_all import Config

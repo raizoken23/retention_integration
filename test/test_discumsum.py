@@ -1,7 +1,7 @@
 import torch
 import pytest
-from packages.state_kernel.test.utils import *
-from state_kernel_cuda import discumsum, discumsum_bwd
+from test.utils import *
+from power_attention_cuda import discumsum, discumsum_bwd
 
 
 def ref_discumsum(X, discount, out):

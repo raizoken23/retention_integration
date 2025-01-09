@@ -1,2 +1,63 @@
 build/*
-.eggs/*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+build/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# C++
+*.o
+*.obj
+*.dll
+*.dylib
+*.lib
+*.a
+*.exe
+*.out
+*.app
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Documentation
+docs/_build/

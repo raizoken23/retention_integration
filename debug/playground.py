@@ -2,7 +2,7 @@ from functools import lru_cache
 
 import torch
 import torch.utils.benchmark as benchmark
-from state_kernel_cuda import (
+from power_attention_cuda import (
     expand_dim,
     expanded_key_value_product,
     expanded_query_state_product,

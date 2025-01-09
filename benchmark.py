@@ -15,15 +15,15 @@ import torch.nn.functional as F
 import torch.utils.benchmark as benchmark
 from einops import rearrange
 from flash_attn_manifest.flash_attn_interface import flash_attn_func
-from state_kernel import __version__ as power_attention_version
-from packages.state_kernel.state_kernel.power_full import PowerAttentionKernel
-from state_kernel.attention import symmetric_power_attention
+from power_attention import __version__ as power_attention_version
+from power_attention.power_full import PowerAttentionKernel
+from power_attention.attention import symmetric_power_attention
 from torch.autograd.profiler import record_function
 from torch.autograd.profiler_util import EventList
 from torch.profiler import ProfilerActivity, profile
 from torch.utils._pytree import tree_map
 
-from state_kernel.chunk_state import ExpandedDim
+from power_attention.chunk_state import ExpandedDim
 
 MEM_LIMIT = 80 * 1024 * 1024 * 1024  # 80 GB
 
@@ -243,9 +243,9 @@ def just_run(cfg: Config, flavor, args): # noqa: C901
         fn = _fn
     elif flavor == 'query_state_compare':
         def fn():
-            from state_kernel.attention import symmetric_power_attention
-            from state_kernel.query_state import symmetric_power_query_state
-            from state_kernel.chunk_state import ExpandedDim
+            from power_attention.attention import symmetric_power_attention
+            from power_attention.query_state import symmetric_power_query_state
+            from power_attention.chunk_state import ExpandedDim
             Q_attn, K_attn, V_attn = tree_map(
                 lambda x: rearrange(x, 'b t h d -> b 1 t h d'),
                 (Q, K, V),
@@ -261,8 +261,8 @@ def just_run(cfg: Config, flavor, args): # noqa: C901
             return (Y + Y_attn) / (y + y_attn)[..., None]
     elif flavor == 'chunk_state_compare':
         def fn():
-            from state_kernel.chunk_state import symmetric_power_chunk_state
-            from state_kernel.attention import symmetric_power_attention
+            from power_attention.chunk_state import symmetric_power_chunk_state
+            from power_attention.attention import symmetric_power_attention
             Q_attn, K_attn, V_attn = tree_map(
                 lambda x: rearrange(x, 'b t h d -> b 1 t h d'),
                 (Q, K, V),
@@ -478,7 +478,7 @@ def plot_component_relative(data, component, args):
     gating = args.gating
     critical_length = args.critical_length
     direction = args.direction
-    from state_kernel.chunk_state import ExpandedDim
+    from power_attention.chunk_state import ExpandedDim
     D = ExpandedDim(head_size, p)
     fig, axes = plt.subplots(2, 1, figsize=(14,20))
     name = 'Query States' if component == 'query_state' else 'Chunk States' if component == 'chunk_state' else None

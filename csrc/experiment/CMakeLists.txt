@@ -19,7 +19,7 @@ include_directories(${CUTLASS_DIR}/include)
 include_directories(${CUTLASS_DIR}/tools/util/include)
 
 # Include state_kernel
-include_directories(${CSRC_DIR}/state_kernel/src)
+include_directories(${CSRC_DIR}/power_attention/src)
 
 set(CMAKE_CUDA_ARCHITECTURES 80)
 message ("CUDA ARCHS: ${CMAKE_CUDA_ARCHITECTURES}")

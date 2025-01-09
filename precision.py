@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from packages.state_kernel.test.utils import *
-from packages.state_kernel.state_kernel.power_full import PowerAttentionKernel
+from test.utils import *
+from power_attention.power_full import PowerAttentionKernel
 
-# from state_kernel.power_attention import PowerAttentionKernel
+# from power_attention.power_attention import PowerAttentionKernel
 
 
 def get_precision(ref_val, cuda_val, torch_val, precision=1e-3, verbose_name=None):

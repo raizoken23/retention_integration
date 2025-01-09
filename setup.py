@@ -11,14 +11,14 @@ from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 this_dir = os.path.dirname(os.path.abspath(__file__))
 ext_modules = []
 
-PAKCAGE_NAME = 'state_kernel'
+PACKAGE_NAME = 'power-attention'
 
 
 def get_package_version():
-    with open(Path(this_dir) / 'state_kernel' / '__init__.py') as f:
-        version_match = re.search(r'^__version__\s*=\s*(.*)$', f.read(), re.MULTILINE)
+    with open(Path(this_dir) / 'pyproject.toml') as f:
+        version_match = re.search(r'^version = (\"[^\"]+\")$', f.read(), re.MULTILINE)
     public_version = ast.literal_eval(version_match.group(1))
-    local_version = os.environ.get('STATE_KERNEL_LOCAL_VERSION')
+    local_version = os.environ.get('POWER_ATTENTION_LOCAL_VERSION')
     if local_version:
         return f'{public_version}+{local_version}'
     return str(public_version)
@@ -105,7 +105,7 @@ if os.path.exists(os.path.join(torch_dir, "include", "ATen", "CUDAGeneratorImpl.
 
 def get_cuda_sources():
     base_sources = [
-        'csrc/state_kernel/api.cpp',
+        'csrc/power_attention/api.cpp',
     ]
 
     if os.environ.get('FAST_BUILD'):
@@ -166,69 +166,75 @@ def get_cuda_sources():
 
 # Define all possible CUDA sources
 ALL_CUDA_SOURCES = [
-    'csrc/state_kernel/api.cpp',
-    'csrc/state_kernel/src/chunk_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_fwd_fp16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_bwd_bf16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_bwd_fp16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_bwd_bf16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/chunk_state_bwd_fp16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_fwd_fp16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_bwd_bf16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_bwd_fp16_kq_hdim32_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_bwd_bf16_kq_hdim64_deg2_sm80.cu',
-    'csrc/state_kernel/src/query_state_bwd_fp16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/api.cpp',
+    'csrc/power_attention/src/chunk_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_fwd_fp16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_bwd_bf16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_bwd_fp16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_bwd_bf16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/chunk_state_bwd_fp16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_fwd_fp16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_bwd_bf16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_bwd_fp16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_bwd_bf16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/query_state_bwd_fp16_kq_hdim64_deg2_sm80.cu',
     # attention fwd related
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_fp16_deg1_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_fp16_deg2_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_fp16_deg3_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_fp16_deg4_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_bf16_deg1_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_bf16_deg2_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_bf16_deg3_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim32_bf16_deg4_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_fp16_deg1_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_fp16_deg2_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_fp16_deg3_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_fp16_deg4_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_bf16_deg1_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_bf16_deg2_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_bf16_deg3_causal_sm80.cu',
-    'csrc/state_kernel/src/attention/power_fwd_hdim64_bf16_deg4_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_fp16_deg1_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_fp16_deg2_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_fp16_deg3_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_fp16_deg4_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_bf16_deg1_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_bf16_deg2_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_bf16_deg3_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim32_bf16_deg4_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_fp16_deg1_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_fp16_deg2_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_fp16_deg3_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_fp16_deg4_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_bf16_deg1_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_bf16_deg2_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_bf16_deg3_causal_sm80.cu',
+    'csrc/power_attention/src/attention/power_fwd_hdim64_bf16_deg4_causal_sm80.cu',
     # Backward kernels
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_fp16_deg1_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_fp16_deg2_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_fp16_deg3_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_fp16_deg4_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_bf16_deg1_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_bf16_deg2_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_bf16_deg3_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim32_bf16_deg4_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_fp16_deg1_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_fp16_deg2_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_fp16_deg3_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_fp16_deg4_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_bf16_deg1_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_bf16_deg2_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_bf16_deg3_sm80.cu',
-    'csrc/state_kernel/src/attention/power_bwd_hdim64_bf16_deg4_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_fp16_deg1_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_fp16_deg2_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_fp16_deg3_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_fp16_deg4_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_bf16_deg1_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_bf16_deg2_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_bf16_deg3_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim32_bf16_deg4_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_fp16_deg1_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_fp16_deg2_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_fp16_deg3_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_fp16_deg4_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_bf16_deg1_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_bf16_deg2_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_bf16_deg3_sm80.cu',
+    'csrc/power_attention/src/attention/power_bwd_hdim64_bf16_deg4_sm80.cu',
     # discumsum
-    'csrc/state_kernel/src/discumsum_fwd_bf16_sm80.cu',
-    'csrc/state_kernel/src/discumsum_fwd_fp16_sm80.cu',
-    'csrc/state_kernel/src/discumsum_fwd_fp32_sm80.cu',
-    'csrc/state_kernel/src/discumsum_bwd_bf16_sm80.cu',
-    'csrc/state_kernel/src/discumsum_bwd_fp16_sm80.cu',
-    'csrc/state_kernel/src/discumsum_bwd_fp32_sm80.cu',
+    'csrc/power_attention/src/discumsum_fwd_bf16_sm80.cu',
+    'csrc/power_attention/src/discumsum_fwd_fp16_sm80.cu',
+    'csrc/power_attention/src/discumsum_fwd_fp32_sm80.cu',
+    'csrc/power_attention/src/discumsum_bwd_bf16_sm80.cu',
+    'csrc/power_attention/src/discumsum_bwd_fp16_sm80.cu',
+    'csrc/power_attention/src/discumsum_bwd_fp32_sm80.cu',
 ]
+
+print(Path(this_dir))
+print(Path(this_dir))
+print(Path(this_dir))
+print(Path(this_dir))
+print(Path(this_dir))
 
 ext_modules.append(
     CUDAExtension(
-        name='state_kernel_cuda',
+        name='power_attention_cuda',
         sources=get_cuda_sources(),
         extra_compile_args={
             'cxx': ['-O3', '-std=c++17'] + generator_flag + debug_flags + fast_flags,
@@ -275,9 +281,9 @@ ext_modules.append(
             ),
         },
         include_dirs=[
-            Path(this_dir) / 'csrc' / 'state_kernel',
-            Path(this_dir) / 'csrc' / 'state_kernel' / 'src',
-            Path(this_dir) / 'csrc' / 'state_kernel' / 'src' / 'attention',
+            Path(this_dir) / 'csrc' / 'power_attention',
+            Path(this_dir) / 'csrc' / 'power_attention' / 'src',
+            Path(this_dir) / 'csrc' / 'power_attention' / 'src' / 'attention',
             Path(this_dir) / 'csrc' / 'cutlass' / 'include',
             Path(this_dir) / 'csrc' / 'cutlass' / 'tools' / 'include',
         ],
@@ -286,18 +292,11 @@ ext_modules.append(
 
 
 setup(
-    name=PAKCAGE_NAME,
+    name=PACKAGE_NAME,
     version=get_package_version(),
     packages=find_packages(
         exclude=('build', 'csrc', 'include', 'tests', 'dist', 'benchmarks'),
     ),
-    author='Sean Zhang',
-    author_email='sean@manifest.com',
-    description='Kernels for symmetric-power-based linear transformers',
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
-    ],
     ext_modules=ext_modules,
     cmdclass={
         'bdist_wheel': CustomBdistWheel,
@@ -307,6 +306,5 @@ setup(
     install_requires=[
         'torch',
         'einops',
-    ],
-    setup_requires=['psutil', 'ninja', 'numpy>=2.2.1'],
+    ]
 )

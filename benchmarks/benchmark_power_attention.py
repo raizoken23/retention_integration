@@ -11,9 +11,9 @@ import torch.nn.functional as F
 import os
 from einops import rearrange, repeat
 
-from state_kernel.timing_utils import get_compiled_versions, estimate_runtime
+from power_attention.timing_utils import get_compiled_versions, estimate_runtime
 
-from packages.state_kernel.state_kernel.power_full import power_full
+from power_attention.power_full import power_full
 
 from flash_attn import flash_attn_func
 

@@ -2,7 +2,7 @@ import os, socket
 import torch
 import torch.distributed as dist
 from einops import rearrange
-from state_kernel.interface import KernelConfig, SymmetricStateKernel
+from power_attention.interface import KernelConfig, SymmetricStateKernel
 from torch.utils._pytree import tree_map
 
 HOSTNAME = socket.gethostname()

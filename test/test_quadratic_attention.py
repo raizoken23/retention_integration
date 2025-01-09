@@ -2,8 +2,8 @@ import math
 import pytest
 import torch
 from einops import rearrange
-from packages.state_kernel.test.utils import *
-from packages.state_kernel.state_kernel.attention import symmetric_power_attention, symmetric_power_attention_reference
+from test.utils import *
+from power_attention.attention import symmetric_power_attention, symmetric_power_attention_reference
 from torch.utils._pytree import tree_map
 
 @pytest.mark.parametrize('batch_size', [1, 2])

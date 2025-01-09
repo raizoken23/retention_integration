@@ -7,13 +7,13 @@ torch._dynamo.config.cache_size_limit = 64
 from einops import rearrange
 from torch.utils._pytree import tree_map
 
-from state_kernel import attention as symmetric_power_attention
-from state_kernel import chunk_state as symmetric_power_chunk_state
-from state_kernel import query_state as symmetric_power_query_state
-from state_kernel import discumsum
-from state_kernel import compute_expanded_dim
-from state_kernel import power_full
-from state_kernel.timing_utils import get_compiled_versions, estimate_runtime
+from power_attention import attention as symmetric_power_attention
+from power_attention import chunk_state as symmetric_power_chunk_state
+from power_attention import query_state as symmetric_power_query_state
+from power_attention import discumsum
+from power_attention import compute_expanded_dim
+from power_attention import power_full
+from power_attention.timing_utils import get_compiled_versions, estimate_runtime
 
 
 def create_test_tensors(batch_size=4, seqlen=4096, nheads=32, headdim=64, device='cuda', dtype=torch.float16):
