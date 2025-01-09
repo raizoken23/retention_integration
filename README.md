@@ -9,25 +9,21 @@ Power Attention uses c++17 (because torch only supports at most c++17).
 
 Power Attention uses setuptools as the build backend. It uses Torch's CUDA extension to compile the CUDA code. 
 
-To build the wheel (which consists of building the extension, packaging the python bindings, and creating the wheel), a Python environment where **torch** is installed is required. 
+To build the wheel (which consists of building the extension, packaging the python bindings, and creating the wheel), you can `pip install .`, `python -m build`, or `uv build`. In the latter case, you may have to specify the compiler, since uv will use the compiler it was built with.
 
-If you are using **poetry**, you can activate the environment and build the wheel with the following commands:
 ```
-poetry shell
-python setup.py bdist_wheel
-```
-
-or, equivalently,
-```
-poetry shell
-make build
+pip install .
+# or
+pip install build && python -m build
+# or
+CC=gcc CXX=g++ uv build
 ```
 
 ## Install
 
 To install the wheel, run
 ```
-pip install dist/state_kernel-<version>-cp311-cp311-linux_x86_64.whl
+pip install dist/power_attention-<version>-cp311-cp311-linux_x86_64.whl
 ```
 
 or, equivalently,
@@ -126,4 +122,3 @@ We want this cross-over point to be as small as possible to benefit from the red
 
 
 # Benchmark
-

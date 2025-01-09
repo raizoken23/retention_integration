@@ -3,6 +3,6 @@
 
 
 int main() {
-    auto m = state_kernel::MultiIndex<4, 8>();
+    auto m = power_attention::MultiIndex<4, 8>();
     m.print_index();
 }

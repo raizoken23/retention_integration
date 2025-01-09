@@ -13,7 +13,7 @@ def ExpandedDim(head_size, deg):
     return ((InnerBlock // OuterBlock + head_size // OuterBlock) * (head_size // InnerBlock) // 2) * (InnerBlock * OuterBlock)
 
 # Define a traceable inner backward pass
-@torch.library.custom_op("state_kernel::query_state_bwd", mutates_args=(), device_types='cuda')
+@torch.library.custom_op("power_attention::query_state_bwd", mutates_args=(), device_types='cuda')
 def query_state_bwd(Q : torch.Tensor, S : torch.Tensor,
                                dO : torch.Tensor, rowmax : Optional[torch.Tensor],
                                deg : int, stabilizer : float, zero_initial_state : bool,deterministic : bool) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

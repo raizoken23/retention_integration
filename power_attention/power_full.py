@@ -8,10 +8,10 @@ from functools import partial
 from torch.utils._pytree import tree_map
 from power_attention._attention import attention, attention_reference
 from power_attention._attention.reference import attention_reference_fwd
-from power_attention._chunk_state import chunk_state, chunk_state_reference
-from power_attention._chunk_state.reference import chunk_state_reference_fwd
+from power_attention._update_state import update_state, update_state_reference
+from power_attention._update_state.reference import update_state_reference_fwd
 from power_attention._discumsum import discumsum, discumsum_reference
-from power_attention._query_state import query_state, query_state_reference
+from power_attention._query_state import query_state, query_state_reference, ExpandedDim
 from power_attention._p1_full import p1_full
 from power_attention.utils import register_multi_grad_hook, clone_grads, get_statistics, plot_precision
 from power_attention.checks import clone_inputs
@@ -19,6 +19,7 @@ from power_attention.timing_utils import report_fwd_bwd
 
 from collections import defaultdict
 import math
+from collections import defaultdict
 res = {
     'fwd': defaultdict(list),
     'ref_fwd': defaultdict(list),
@@ -202,12 +203,12 @@ def power_full(Q, K, V, log_G=None, initial_state=None,
     # Swap in reference kernels if desired
     if use_reference:
         _attention = attention_reference
-        _chunk_state = chunk_state_reference
+        _update_state = update_state_reference
         _discumsum = discumsum_reference
         _query_state = query_state_reference
     else:
         _attention = attention
-        _chunk_state = chunk_state
+        _update_state = update_state
         _discumsum = discumsum
         _query_state = query_state
     if initial_state is not None:
@@ -260,7 +261,7 @@ def power_full(Q, K, V, log_G=None, initial_state=None,
         cs_K = K * torch.exp(log_discount_weights).unsqueeze(-1).to(K.dtype)
     else:
         cs_K = K
-    S = _chunk_state(cs_K.contiguous(), V.contiguous(), deg)
+    S = _update_state(cs_K.contiguous(), V.contiguous(), deg)
 
     # Accumulate
     if gating:

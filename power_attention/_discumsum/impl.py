@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 from power_attention._discumsum.fwd import discumsum_fwd
 from power_attention._discumsum.bwd import discumsum_bwd
 
-@torch.library.custom_op("state_kernel::discumsum", mutates_args=())
+@torch.library.custom_op("power_attention::discumsum", mutates_args=())
 def discumsum(X : torch.Tensor, log_G : torch.Tensor) -> torch.Tensor:
     """Compute discounted cumulative sum along time axis.
 
@@ -67,7 +67,7 @@ def discumsum_backward(ctx, dcum_X):
 
 # Register autograd
 torch.library.register_autograd(
-    "state_kernel::discumsum", discumsum_backward, setup_context=discumsum_setup
+    "power_attention::discumsum", discumsum_backward, setup_context=discumsum_setup
 )
 
 # Useful function to create sample inputs   

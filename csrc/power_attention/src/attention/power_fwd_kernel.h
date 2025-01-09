@@ -706,7 +706,7 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
 
     // Sum acc_norm across threads
     SumOp<float> sum_op;
-    state_kernel::quad_allreduce_(acc_norm, acc_norm, sum_op);
+    power_attention::quad_allreduce_(acc_norm, acc_norm, sum_op);
 
     // first write acc_norm back to shared memory
     __syncthreads(); // necessary since at the last iteration, some threads can still be working with sQ

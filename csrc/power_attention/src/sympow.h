@@ -24,7 +24,7 @@ __forceinline__ __device__ void static_add(Tensor &arr, T &&val)
     arr[DIM] += std::forward<T>(val);
 }
 
-namespace state_kernel
+namespace power_attention
 {
     using namespace cute;
 
@@ -297,7 +297,7 @@ namespace state_kernel
             return rQ_col;
         }
 
-        // state expansion for chunk_state_fwd
+        // state expansion for update_state_fwd
         template <int INNER_BID, typename TensorSKt, typename TensorSPKt, typename TiledMma>
         __forceinline__ __device__ auto expandState(TensorSKt sKt, TensorSPKt sPKt, TiledMma tiled_mma,  const int outer_bid, const bool is_on_diagonal) {
             const int tid = threadIdx.x;
@@ -384,13 +384,13 @@ namespace state_kernel
             return tSrPQ;
         }
 
-        // state expansion for chunk_state_bwd
+        // state expansion for update_state_bwd
         template <typename TensorSK, typename TiledMma>
         __forceinline__ __device__ auto expandState(TensorSK sK, TiledMma tiled_mma, const int inner_bid, const int outer_bid) {
             const int tid = threadIdx.x;
             const bool is_on_diagonal = on_diagonal<OuterBlock, InnerBlock>(inner_bid, outer_bid);
-            static_assert(OuterBlock == 1, "OuterBlock must be 1 for chunk_state_bwd");
-            static_assert(InnerBlock == BlockD, "InnerBlock must be BlockD for chunk_state_bwd");
+            static_assert(OuterBlock == 1, "OuterBlock must be 1 for update_state_bwd");
+            static_assert(InnerBlock == BlockD, "InnerBlock must be BlockD for update_state_bwd");
 
             // Steps:
             // 1. All warps read the same block of K matrix (inner block)
@@ -641,7 +641,7 @@ namespace state_kernel
 
         template <typename TensorSdy, typename TensorSN, typename ACC_DPQ>
         __forceinline__ __device__ auto add_dyN_trans(TensorSdy sdy, TensorSN sN, ACC_DPQ &acc_dpq, const float stabilizer=1.0f) {
-            Tensor dpq_rowcol = make_tensor(acc_dpq.data(), state_kernel::convert_layout_acc_rowcol(acc_dpq.layout())); // ((2, 1), (2, 2))
+            Tensor dpq_rowcol = make_tensor(acc_dpq.data(), power_attention::convert_layout_acc_rowcol(acc_dpq.layout())); // ((2, 1), (2, 2))
             Tensor rdy = make_tensor<ElementAccum>(get<0>(dpq_rowcol.layout())); // (2, 1)
             Tensor rN = make_tensor<ElementAccum>(make_layout(get<1, 0>(dpq_rowcol.layout()), get<1, 1>(dpq_rowcol.layout()))); // (2, 2)
 
@@ -706,7 +706,7 @@ namespace state_kernel
 
         template <typename TensorRdy, typename TensorSN, typename ACC_DPQ, typename Params>
         __forceinline__ __device__ auto add_dyN(TensorRdy &rdy, TensorSN sN, ACC_DPQ &acc_dpq, const Params &params) {
-            Tensor dpq_rowcol = make_tensor(acc_dpq.data(), state_kernel::convert_layout_acc_rowcol(acc_dpq.layout())); // ((2, 1), (2, 2))
+            Tensor dpq_rowcol = make_tensor(acc_dpq.data(), power_attention::convert_layout_acc_rowcol(acc_dpq.layout())); // ((2, 1), (2, 2))
             Tensor rN = make_tensor<ElementAccum>(make_layout(get<1, 0>(dpq_rowcol.layout()), get<1, 1>(dpq_rowcol.layout()))); // (2, 2)
 
             CUTE_STATIC_ASSERT_V(rank(rdy) == _2{}, "rdy has rank 2");
@@ -743,7 +743,7 @@ namespace state_kernel
 
 
         /**
-         * @brief Backpropagate gradient from Phi(Q) to Q, for query_state_bwd_dq and chunk_state_bwd
+         * @brief Backpropagate gradient from Phi(Q) to Q, for query_state_bwd_dq and update_state_bwd
          */
         template <bool Adjust_Coefficient, typename TensorSQ, typename ACC_DPQ, typename ACC_DQ, typename TILED_MMA>
         __forceinline__ __device__ auto graddQK(TensorSQ sQ, ACC_DPQ &acc_dpq, ACC_DQ &acc_dq, TILED_MMA tiled_mma, const int inner_bid, const int outer_bid) {
@@ -1270,4 +1270,4 @@ namespace state_kernel
     };
 
 
-} // namespace state_kernel
+} // namespace power_attention

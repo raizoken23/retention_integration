@@ -142,10 +142,10 @@ def test_power_full_reference_grad_consistency(kw):
     )
 
 # TODO(jbuckman): find the right place for this test
-# from power_attention._chunk_state.reference import (
+# from power_attention._update_state.reference import (
 #     SymmetricPowerChunkStateReference
 # )
-# from power_attention._chunk_state.impl import create_inputs as create_inputs_impl_cs
+# from power_attention._update_state.impl import create_inputs as create_inputs_impl_cs
 # from power_attention._query_state.reference import (
 #     QueryStateReference
 # )

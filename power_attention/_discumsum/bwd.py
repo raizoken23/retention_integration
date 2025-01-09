@@ -4,7 +4,7 @@
 import torch
 from power_attention_cuda import discumsum_bwd as discumsum_bwd_cuda
 
-@torch.library.custom_op('state_kernel::discumsum_bwd', mutates_args=(), device_types='cuda')
+@torch.library.custom_op('power_attention::discumsum_bwd', mutates_args=(), device_types='cuda')
 def discumsum_bwd(dout : torch.Tensor, out : torch.Tensor, log_G : torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute gradients for discounted cumulative sum operation.
 

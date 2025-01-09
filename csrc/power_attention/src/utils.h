@@ -33,7 +33,7 @@ struct is_one_of<T, First, Rest...>
     : std::conditional_t<std::is_same<T, First>::value, std::true_type, is_one_of<T, Rest...>> {};
 
 
-namespace state_kernel
+namespace power_attention
 {
     using namespace cute;
 
@@ -430,7 +430,7 @@ namespace state_kernel
         if constexpr (reuse_input && is_one_of<Element, cutlass::tfloat32_t, float>::value) {
             a_fp32 = a;
         } else {
-            a_fp32 = state_kernel::convert_type<float_type>(a);
+            a_fp32 = power_attention::convert_type<float_type>(a);
         }
         CUTE_UNROLL
         for (int i = 0; i < size(a_fp32); i++) {
@@ -440,10 +440,10 @@ namespace state_kernel
             return a_fp32;
         } else {
             if constexpr (reuse_input && !is_one_of<Element, cutlass::tfloat32_t, float>::value) {
-                state_kernel::convert_type(a_fp32, a);
+                power_attention::convert_type(a_fp32, a);
                 return a;
             } else {
-                return state_kernel::convert_type<Element>(a_fp32);
+                return power_attention::convert_type<Element>(a_fp32);
             }
         }
     }
@@ -499,10 +499,10 @@ namespace state_kernel
             return std::make_pair(signs, a_fp32);
         } else {
             if constexpr (reuse_input) {
-                state_kernel::convert_type(a_fp32, a);
+                power_attention::convert_type(a_fp32, a);
                 return std::make_pair(signs, a);
             } else {
-                return std::make_pair(signs, state_kernel::convert_type<Element>(a_fp32));
+                return std::make_pair(signs, power_attention::convert_type<Element>(a_fp32));
             }
         }
     }
@@ -764,4 +764,4 @@ namespace state_kernel
         }  
     }
 
-} // namespace state_kernel
+} // namespace power_attention

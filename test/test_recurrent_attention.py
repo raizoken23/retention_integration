@@ -3,8 +3,8 @@ import math
 import pytest
 import torch
 from einops import rearrange
-from test.utils import *
-from power_attention.power_full import PowerAttentionKernel
+from packages.power_attention.test.utils import *
+from packages.power_attention.power_attention.power_full import PowerAttentionKernel
 from torch.utils._pytree import tree_map
 
 @pytest.mark.parametrize('batch_size', [1, 2])

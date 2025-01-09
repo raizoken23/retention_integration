@@ -178,9 +178,9 @@ struct DLayout<KernelType::QueryStateBwddQ>
  * @brief Calculates the layout for all kernels.
  *
  * We want
- *      - large BlockD for chunk_state_fwd
- *      - large BlockT for chunk_state_bwd_dv
- *      - large BlockT for chunk_state_bwd_dk
+ *      - large BlockD for update_state_fwd
+ *      - large BlockT for update_state_bwd_dv
+ *      - large BlockT for update_state_bwd_dk
  *      - large BlockT for query_state_fwd
  *      - large BlockD for query_state_bwd_dSdN
  *      - large BlockT for query_state_bwd_dq
@@ -254,7 +254,7 @@ constexpr std::tuple<int, int, int> BlockDLayout(const int headdim)
     return std::make_tuple(InnerBlock, OuterBlock, D_padded);
 }
 
-struct Chunk_state_params
+struct Update_state_params
 {
     // The KV and output matrices
     void *__restrict__ k_ptr;
@@ -298,10 +298,10 @@ struct Chunk_state_params
     // Whether to return the expanded state
     bool return_phi;
 
-    // Overload << operator for Chunk_state_params
-    friend std::ostream &operator<<(std::ostream &os, const Chunk_state_params &params)
+    // Overload << operator for Update_state_params
+    friend std::ostream &operator<<(std::ostream &os, const Update_state_params &params)
     {
-        os << "Chunk_state_params:" << std::endl;
+        os << "Update_state_params:" << std::endl;
         os << "  batch_size: " << params.batch_size << std::endl;
         os << "  num_chunks: " << params.num_chunks << std::endl;
         os << "  chunk_seq_len: " << params.chunk_seq_len << std::endl;
@@ -336,7 +336,7 @@ struct Chunk_state_params
     // Define a print method that works on device as well
     __inline__ __device__ void print()
     {
-        printf("Chunk_state_params:\n");
+        printf("Update_state_params:\n");
         printf("  batch_size: %ld\n", static_cast<long>(batch_size));
         printf("  num_chunks: %ld\n", static_cast<long>(num_chunks));
         printf("  chunk_seq_len: %ld\n", static_cast<long>(chunk_seq_len));
@@ -360,7 +360,7 @@ struct Chunk_state_params
     }
 };
 
-struct Chunk_state_bwd_params
+struct Update_state_bwd_params
 {
     // The KV and output matrices
     void *__restrict__ k_ptr;
@@ -398,10 +398,10 @@ struct Chunk_state_bwd_params
     bool is_bf16;
     bool return_phi;
 
-    // Overload << operator for Chunk_state_bwd_params
-    friend std::ostream &operator<<(std::ostream &os, const Chunk_state_bwd_params &params)
+    // Overload << operator for Update_state_bwd_params
+    friend std::ostream &operator<<(std::ostream &os, const Update_state_bwd_params &params)
     {
-        os << "Chunk_state_bwd_params:" << std::endl;
+        os << "Update_state_bwd_params:" << std::endl;
         os << "  batch_size: " << params.batch_size << std::endl;
         os << "  num_chunks: " << params.num_chunks << std::endl;
         os << "  chunk_seq_len: " << params.chunk_seq_len << std::endl;
@@ -631,7 +631,7 @@ struct Query_state_bwd_params
     }
 };
 
-inline void set_chunk_state_params(Chunk_state_params &params,
+inline void set_update_state_params(Update_state_params &params,
                                    at::Tensor k,
                                    at::Tensor v,
                                    at::Tensor o,
@@ -689,7 +689,7 @@ inline void set_chunk_state_params(Chunk_state_params &params,
     params.return_phi = return_phi;
 };
 
-inline void set_chunk_state_bwd_params(Chunk_state_bwd_params &params,
+inline void set_update_state_bwd_params(Update_state_bwd_params &params,
                                        at::Tensor k,
                                        at::Tensor v,
                                        at::Tensor dS,
@@ -1013,7 +1013,7 @@ struct Discumsum_bwd_params
 
 
 template <typename T, int Headdim, int Deg>
-void run_compute_chunk_states(Chunk_state_params &params, cudaStream_t stream);
+void run_compute_update_states(Update_state_params &params, cudaStream_t stream);
 
 template <typename T, int Headdim, int Deg>
 void run_compute_query_states(Query_state_params &params, cudaStream_t stream);
@@ -1022,7 +1022,7 @@ template <typename T, int Headdim, int Deg>
 void run_compute_query_states_bwd(Query_state_bwd_params &params, cudaStream_t stream);
 
 template <typename T, int Headdim, int Deg>
-void run_compute_chunk_states_bwd(Chunk_state_bwd_params &params, cudaStream_t stream);
+void run_compute_update_states_bwd(Update_state_bwd_params &params, cudaStream_t stream);
 
 template <typename T>
 void run_discumsum_fwd(Discumsum_params &params, cudaStream_t stream);

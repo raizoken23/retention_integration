@@ -2,8 +2,8 @@ import math
 import pytest
 import torch
 from einops import rearrange
-from test.utils import *
-from power_attention.chunk_state import symmetric_power_chunk_state, symmetric_power_chunk_state_reference, InnerBlock_DT as InnerBlock, OuterBlock_DT as OuterBlock
+from packages.power_attention.test.utils import *
+from packages.power_attention.power_attention.update_state import symmetric_power_update_state, symmetric_power_update_state_reference, InnerBlock_DT as InnerBlock, OuterBlock_DT as OuterBlock
 from torch.utils._pytree import tree_map
 
 @pytest.mark.parametrize('batch_size', [1, 2])
@@ -17,7 +17,7 @@ from torch.utils._pytree import tree_map
 @pytest.mark.parametrize('gating', [False])
 @pytest.mark.parametrize('ε', [1e-5])
 @pytest.mark.parametrize('memory_limit', [4096 * 1024 * 1024]) # 4GB
-def test_chunk_state_fwd_and_bwd(batch_size, seqlen_q, num_heads, head_size, chunk_size, p, dtype, seed, gating, ε, memory_limit):
+def test_update_state_fwd_and_bwd(batch_size, seqlen_q, num_heads, head_size, chunk_size, p, dtype, seed, gating, ε, memory_limit):
     torch.manual_seed(seed)
     # torch.set_printoptions(precision=7, sci_mode=False, edgeitems=1000, linewidth=10000)
 
@@ -39,17 +39,17 @@ def test_chunk_state_fwd_and_bwd(batch_size, seqlen_q, num_heads, head_size, chu
     inputs = K,V
 
     inputs_gold = paramify(pytree_to(inputs, torch.float32))
-    S_gold, s_gold = symmetric_power_chunk_state_reference(*inputs_gold, p)
+    S_gold, s_gold = symmetric_power_update_state_reference(*inputs_gold, p)
     loss_gold = S_gold.mean() / s_gold.mean()
     loss_gold.backward()
 
     inputs_ref = paramify(inputs)
-    S_ref, s_ref = symmetric_power_chunk_state_reference(*inputs_ref, p)
+    S_ref, s_ref = symmetric_power_update_state_reference(*inputs_ref, p)
     loss_ref = S_ref.mean() / s_ref.mean()
     loss_ref.backward()
 
     inputs = paramify(inputs)
-    S, s = symmetric_power_chunk_state(*inputs, p)
+    S, s = symmetric_power_update_state(*inputs, p)
     loss = S.mean() / s.mean()
     loss.backward()
 

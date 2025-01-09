@@ -11,7 +11,7 @@ from power_attention._query_state.bwd import ExpandedDim as compute_expanded_dim
 from power_attention.timing_utils import report_fwd_bwd
 
 # Define the primary query_state entrypoint
-@torch.library.custom_op("state_kernel::query_state", mutates_args=())
+@torch.library.custom_op("power_attention::query_state", mutates_args=())
 def query_state(Q : torch.Tensor, S : torch.Tensor,
                 Y : Optional[torch.Tensor],
                 rowmax : Optional[torch.Tensor],
@@ -70,7 +70,7 @@ def query_state_backward(ctx, dO):
     return dQ, dS, dY, None, None, None, None, None, None
 # Register autograd
 torch.library.register_autograd(
-    "state_kernel::query_state", query_state_backward, setup_context=query_state_setup
+    "power_attention::query_state", query_state_backward, setup_context=query_state_setup
 )
 
 # Useful function to create sample inputs

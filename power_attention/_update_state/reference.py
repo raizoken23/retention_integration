@@ -90,5 +90,5 @@ class SymmetricPowerChunkStateReference(torch.autograd.Function):
         dK = dK.transpose(2, 3)
         return dK, dV, None
 
-chunk_state_reference = SymmetricPowerChunkStateReference.apply
-chunk_state_reference_fwd = dummify(SymmetricPowerChunkStateReference.forward)
+update_state_reference = SymmetricPowerChunkStateReference.apply
+update_state_reference_fwd = dummify(SymmetricPowerChunkStateReference.forward)

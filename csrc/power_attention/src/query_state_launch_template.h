@@ -29,7 +29,7 @@ void run_query_states_fwd_kernel_(Query_state_params &params, cudaStream_t strea
 #endif
 
     const int numBlockQ = (params.chunk_seq_len + BlockQ - 1) / BlockQ;
-    auto kernel = &state_kernel::query_state_kernel_fwd<Kernel_traits>;
+    auto kernel = &power_attention::query_power_attention_fwd<Kernel_traits>;
     auto grid = dim3(numBlockQ, params.num_heads, params.batch_size * params.num_chunks);
 
     // std::cout << "return_phi: " << params.return_phi << std::endl;
@@ -46,7 +46,7 @@ void run_query_states_bwd_kernel_dsdn_(Query_state_bwd_params &params, cudaStrea
     constexpr int BlockD = Kernel_traits::BlockD;
     constexpr int numBlockD = (Kernel_traits::PaddedExpandedDim + BlockD - 1) / BlockD;
     auto griddSdN = dim3(numBlockD, params.num_heads, params.batch_size * params.num_chunks);
-    auto kernel_dSdN = &state_kernel::query_state_bwd_dSdN<Kernel_traits>;
+    auto kernel_dSdN = &power_attention::query_state_bwd_dSdN<Kernel_traits>;
     constexpr auto rowmax_smem_size = (Kernel_traits::DoubleBuffer ? 2 : 1) * Kernel_traits::RowmaxSmemSize;
 #ifdef QUERY_STATE_BWD_DEBUG
     const size_t input_smem_size = Kernel_traits::InputSmemSizedSdN + Kernel_traits::PhiQSmemSize + (params.has_rowmax ? rowmax_smem_size : 0);
@@ -68,7 +68,7 @@ void run_query_states_bwd_kernel_dsdn_dq_(Query_state_bwd_params &params, cudaSt
 {
     constexpr int BlockD = Kernel_traits::BlockD;
     int gridDimD = (Kernel_traits::PaddedExpandedDim + BlockD - 1) / BlockD;
-    auto kernel_dSdNdQ = &state_kernel::query_state_bwd_dSdNdQ<Kernel_traits>;
+    auto kernel_dSdNdQ = &power_attention::query_state_bwd_dSdNdQ<Kernel_traits>;
     constexpr auto rowmax_smem_size = (Kernel_traits::DoubleBuffer ? 2 : 1) * Kernel_traits::RowmaxSmemSize;
 #ifdef QUERY_STATE_BWD_DEBUG
     const size_t smem_size = Kernel_traits::SmemSizedSdNdQ + Kernel_traits::PhiQSmemSize + (params.has_rowmax ? rowmax_smem_size : 0);
@@ -101,7 +101,7 @@ void run_query_states_bwd_kernel_dq_(Query_state_bwd_params &params, cudaStream_
 
     const int numBlockQ = (params.chunk_seq_len + BlockQ - 1) / BlockQ;
     auto griddQ = dim3(numBlockQ, params.num_heads, params.batch_size * params.num_chunks);
-    auto kernel_dQ = &state_kernel::query_state_bwd_dQ<Kernel_traits>;
+    auto kernel_dQ = &power_attention::query_state_bwd_dQ<Kernel_traits>;
     const size_t input_smem_size = Kernel_traits::InputSmemSizedQ;
     const size_t phi_q_smem_size = Kernel_traits::PhiQSmemSize;
     const size_t output_smem_size = Kernel_traits::OutputSmemSizedQ;

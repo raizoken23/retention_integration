@@ -23,7 +23,7 @@ from torch.autograd.profiler_util import EventList
 from torch.profiler import ProfilerActivity, profile
 from torch.utils._pytree import tree_map
 
-from power_attention.chunk_state import ExpandedDim
+from power_attention.update_state import ExpandedDim
 
 MEM_LIMIT = 80 * 1024 * 1024 * 1024  # 80 GB
 
@@ -245,7 +245,7 @@ def just_run(cfg: Config, flavor, args): # noqa: C901
         def fn():
             from power_attention.attention import symmetric_power_attention
             from power_attention.query_state import symmetric_power_query_state
-            from power_attention.chunk_state import ExpandedDim
+            from power_attention.update_state import ExpandedDim
             Q_attn, K_attn, V_attn = tree_map(
                 lambda x: rearrange(x, 'b t h d -> b 1 t h d'),
                 (Q, K, V),
@@ -259,9 +259,9 @@ def just_run(cfg: Config, flavor, args): # noqa: C901
             Q_chunk = rearrange(Q, 'b (n c) h d -> b n c h d', c=cfg.chunk_size)
             Y, y = symmetric_power_query_state(Q_chunk, S, s, cfg.p, cfg.stabilizer)
             return (Y + Y_attn) / (y + y_attn)[..., None]
-    elif flavor == 'chunk_state_compare':
+    elif flavor == 'update_state_compare':
         def fn():
-            from power_attention.chunk_state import symmetric_power_chunk_state
+            from power_attention.update_state import symmetric_power_update_state
             from power_attention.attention import symmetric_power_attention
             Q_attn, K_attn, V_attn = tree_map(
                 lambda x: rearrange(x, 'b t h d -> b 1 t h d'),
@@ -270,7 +270,7 @@ def just_run(cfg: Config, flavor, args): # noqa: C901
             Y_attn, y_attn = symmetric_power_attention(Q_attn, K_attn, V_attn, None, cfg.p, cfg.stabilizer, cfg.ε)
             b, t, h, d = cfg.shape
             K_chunk, V_chunk = tree_map(lambda x: rearrange(x, 'b (n c) h d -> b n c h d', c=cfg.chunk_size), (K, V))
-            S, s = symmetric_power_chunk_state(K_chunk, V_chunk, cfg.p)
+            S, s = symmetric_power_update_state(K_chunk, V_chunk, cfg.p)
             return (Y_attn / y_attn[:, :, :, :, None]).norm() + (S / s[..., None]).norm()
 
 
@@ -303,7 +303,7 @@ def profile_components(res, cfg, flavor, args):
             x
             for x in prof.key_averages()
             if ((x.key.startswith('power::') or x.key.startswith('call::')) and x.device_type.name == 'CPU')
-            or 'state_kernel::' in x.key
+            or 'power_attention::' in x.key
         ],
     )
     power_events_dict = {
@@ -323,7 +323,7 @@ def profile_components(res, cfg, flavor, args):
             power_events_dict['power::accumulate_state'] + (0 if direction == 'fwd' else power_events_dict['power::accumulate_state_backward']),
         )
         res[f'Chunk States{"" if cfg.expand else "-unexpanded"}'].append(
-            power_events_dict['power::chunk_state_cuda'] + (0 if direction == 'fwd' else power_events_dict['power::chunk_state_backward_cuda']),
+            power_events_dict['power::update_state_cuda'] + (0 if direction == 'fwd' else power_events_dict['power::update_state_backward_cuda']),
         )
         res[f'Query States{"" if cfg.expand else "-unexpanded"}'].append(
             power_events_dict['power::query_states_fwd'] + (0 if direction == 'fwd' else power_events_dict['power::query_state_backward_cuda']),
@@ -342,9 +342,9 @@ def profile_components(res, cfg, flavor, args):
         res[f'Power Attention{"" if cfg.expand else "-unexpanded"}'].append(
             power_events_dict['power::attention_forward_cuda'] if direction=='fwd' else power_events_dict['power::attention_backward_cuda'],
         )
-    elif flavor == 'chunk_state_compare':
+    elif flavor == 'update_state_compare':
         res[f'Chunk States{"" if cfg.expand else "-unexpanded"}'].append(
-            power_events_dict['power::chunk_state_cuda'] if direction=='fwd' else power_events_dict['power::chunk_state_backward_cuda'],
+            power_events_dict['power::update_state_cuda'] if direction=='fwd' else power_events_dict['power::update_state_backward_cuda'],
         )
         res[f'Power Attention{"" if cfg.expand else "-unexpanded"}'].append(
             power_events_dict['power::attention_forward_cuda'] if direction=='fwd' else power_events_dict['power::attention_backward_cuda'],
@@ -478,10 +478,10 @@ def plot_component_relative(data, component, args):
     gating = args.gating
     critical_length = args.critical_length
     direction = args.direction
-    from power_attention.chunk_state import ExpandedDim
+    from power_attention.update_state import ExpandedDim
     D = ExpandedDim(head_size, p)
     fig, axes = plt.subplots(2, 1, figsize=(14,20))
-    name = 'Query States' if component == 'query_state' else 'Chunk States' if component == 'chunk_state' else None
+    name = 'Query States' if component == 'query_state' else 'Chunk States' if component == 'update_state' else None
     actual_speedup = data['Power Attention'] / data[name]
     theoretical_speedup = data['ctx'] / D
     speedup_gap = 1 - actual_speedup / theoretical_speedup
@@ -676,7 +676,7 @@ def component_relative(component, args): # noqa: C901
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('benchmark', type=str, default='query_state_relative', help='benchmark type: relative_perf, absolute_perf, chunk_state, query_state')
+    parser.add_argument('benchmark', type=str, default='query_state_relative', help='benchmark type: relative_perf, absolute_perf, update_state, query_state')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--token_count', type=int, default=131072)
@@ -703,7 +703,7 @@ if __name__ == '__main__':
         img = component_relative('query_state', args)
         print('##########################################################')
         print('saved query_state relative image to ', img)
-    elif args.benchmark == 'chunk_state':
-        img = component_relative('chunk_state', args)
+    elif args.benchmark == 'update_state':
+        img = component_relative('update_state', args)
         print('##########################################################')
-        print('saved chunk_state relative image to ', img)
+        print('saved update_state relative image to ', img)

@@ -139,7 +139,7 @@ def get_cuda_sources():
                 else:
                     return 'causal' not in file
             
-            # For state files (chunk_state and query_state)
+            # For state files (update_state and query_state)
             # More explicit filtering
             if f'hdim{head_dim}' not in file or fp_pattern not in file:
                 return False
@@ -163,14 +163,14 @@ def get_cuda_sources():
 # Define all possible CUDA sources
 ALL_CUDA_SOURCES = [
     'csrc/power_attention/api.cpp',
-    'csrc/power_attention/src/chunk_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_fwd_fp16_kq_hdim64_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_bwd_bf16_kq_hdim32_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_bwd_fp16_kq_hdim32_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_bwd_bf16_kq_hdim64_deg2_sm80.cu',
-    'csrc/power_attention/src/chunk_state_bwd_fp16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_fwd_fp16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_bwd_bf16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_bwd_fp16_kq_hdim32_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_bwd_bf16_kq_hdim64_deg2_sm80.cu',
+    'csrc/power_attention/src/update_state_bwd_fp16_kq_hdim64_deg2_sm80.cu',
     'csrc/power_attention/src/query_state_fwd_bf16_kq_hdim32_deg2_sm80.cu',
     'csrc/power_attention/src/query_state_fwd_fp16_kq_hdim32_deg2_sm80.cu',
     'csrc/power_attention/src/query_state_fwd_bf16_kq_hdim64_deg2_sm80.cu',

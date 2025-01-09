@@ -2,8 +2,8 @@ import torch
 import os
 
 from einops import rearrange
-from power_attention.power_full import PowerAttentionKernel
-from power_attention.chunk_state import symmetric_power_chunk_state, ExpandedDim
+from packages.power_attention.power_attention.power_full import PowerAttentionKernel
+from power_attention.update_state import symmetric_power_update_state, ExpandedDim
 from power_attention.query_state import symmetric_power_query_state
 from power_attention.attention import symmetric_power_attention
 from torch.utils._pytree import tree_map
@@ -124,7 +124,7 @@ def query_state_ablate_state_expansion(Q, S, s, Y_attn, y_attn, log_G, p, ε):
     (Y_qs.norm() + y_qs.norm()).backward(retain_graph=True)
 
 
-def chunk_state_ablation():
+def update_state_ablation():
     head_size = 64
     p = 2
     ε = 1e-5
@@ -152,7 +152,7 @@ def chunk_state_ablation():
     D = ExpandedDim(head_size, p)
 
 
-    Y_qs, y_qs = symmetric_power_chunk_state(K, V, 2)
+    Y_qs, y_qs = symmetric_power_update_state(K, V, 2)
     (Y_qs.norm() + y_qs.norm()).backward(retain_graph=True)
 
 
@@ -180,12 +180,12 @@ def run_discumsum():
 
 if __name__ == '__main__':
 
-    chunk_state_ablation()
+    update_state_ablation()
     compare_attention()
 
 
 # import torch
-# from power_attention.power_attention import PowerAttentionKernel
+# from packages.power_attention.power_attention.power_attention import PowerAttentionKernel
 
 # def f(Q, K, V, log_G, Y_grad, d):
 #     pa = PowerAttentionKernel(d, 2, 0.001, torch.float16)

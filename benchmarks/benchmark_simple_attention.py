@@ -13,13 +13,13 @@ from einops import rearrange, repeat
 from torch.utils._pytree import tree_map
 
 
-from benchmark import (
+from packages.power_attention.benchmark import (
     benchmark_forward,
     benchmark_backward,
 )
 from power_attention.timing_utils import get_compiled_versions, estimate_runtime
 
-from power_attention.power_full import PowerAttentionKernel
+from packages.power_attention.power_attention.power_full import PowerAttentionKernel
 from power_attention.attention import symmetric_power_attention
 
 from flash_attn import flash_attn_func

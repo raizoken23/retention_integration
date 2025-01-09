@@ -262,7 +262,7 @@ query_states_bwd(const at::Tensor &q, // batch_size x num_chunks x chunk_seq_len
 }
 
 std::vector<at::Tensor>
-compute_chunk_states(const at::Tensor &k,                // batch_size x num_chunks x chunk_seq_len x num_heads x head_size
+compute_update_states(const at::Tensor &k,                // batch_size x num_chunks x chunk_seq_len x num_heads x head_size
                      const at::Tensor &v,                // batch_size x num_chunks x chunk_seq_len x num_heads x head_size
                      const int deg,                      // degree of similarity
                      const bool return_phi = false,       // whether to return phi(K, V)
@@ -325,8 +325,8 @@ compute_chunk_states(const at::Tensor &k,                // batch_size x num_chu
     }
 
     // Set params for kernel
-    Chunk_state_params params;
-    set_chunk_state_params(params, k, v, out, phi, deg, return_phi);
+    Update_state_params params;
+    set_update_state_params(params, k, v, out, phi, deg, return_phi);
 
     params.expand = expand;
 
@@ -336,7 +336,7 @@ compute_chunk_states(const at::Tensor &k,                // batch_size x num_chu
     STATE_DTYPE_SWITCH(!params.is_bf16, Elem_type, [&] {
         STATE_HEADDIM_SWITCH(k_head_size, K_Head_dim, [&] {
             STATE_HEADDIM_SWITCH(v_head_size, V_Head_dim, [&] { 
-                run_compute_chunk_states<Elem_type, K_Head_dim, 2>(params, stream);
+                run_compute_update_states<Elem_type, K_Head_dim, 2>(params, stream);
             });
         });
     });
@@ -345,7 +345,7 @@ compute_chunk_states(const at::Tensor &k,                // batch_size x num_chu
 }
 
 std::vector<at::Tensor>
-chunk_states_bwd(const at::Tensor &k, // batch_size x seqlen_k x num_heads x head_size
+update_states_bwd(const at::Tensor &k, // batch_size x seqlen_k x num_heads x head_size
                  const at::Tensor &v, // batch_size x seqlen_k x num_heads x head_size
                  const at::Tensor &dS, // batch_size x num_chunks x num_heads x padded_expanded_dim x head_size
                  const int deg) {
@@ -397,14 +397,14 @@ chunk_states_bwd(const at::Tensor &k, // batch_size x seqlen_k x num_heads x hea
     auto dv = torch::empty_like(v);
 
     // Set params for kernel
-    Chunk_state_bwd_params params;
-    set_chunk_state_bwd_params(params, k, v, dS, dk, dv, deg);
+    Update_state_bwd_params params;
+    set_update_state_bwd_params(params, k, v, dS, dk, dv, deg);
 
     // Call kernel
     auto stream = at::cuda::getCurrentCUDAStream().stream();
     STATE_DTYPE_SWITCH(!params.is_bf16, Elem_type, [&] {
         STATE_HEADDIM_SWITCH(head_size, Head_dim, [&] {
-            run_compute_chunk_states_bwd<Elem_type, Head_dim, 2>(params, stream);
+            run_compute_update_states_bwd<Elem_type, Head_dim, 2>(params, stream);
         });
     });
 
@@ -605,9 +605,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.doc() = "Power Attention";
     m.def("compute_query_states", &compute_query_states, "Compute query states");
-    m.def("compute_chunk_states", &compute_chunk_states, "Compute chunk states");
+    m.def("compute_update_states", &compute_update_states, "Compute chunk states");
     m.def("query_states_bwd", &query_states_bwd, "Backward pass query states");
-    m.def("chunk_states_bwd", &chunk_states_bwd, "Backward pass chunk states");
+    m.def("update_states_bwd", &update_states_bwd, "Backward pass chunk states");
     m.def("attention_fwd", &attention_fwd, "Forward pass attention");
     m.def("attention_bwd", &attention_bwd, "Backward pass attention");
     m.def("discumsum", &discumsum, "Discounted cumsum");

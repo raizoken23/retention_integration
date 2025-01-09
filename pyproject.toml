@@ -4,6 +4,8 @@ version = "0.9.13"
 description = "Kernels for symmetric-power-based linear transformers"
 authors = [
   { name = "Sean Zhang", email = "sean@manifest.com" },
+  { name = "Carles Gelada", email = "cgel@manifest.com" },
+  { name = "Jacob Buckman", email = "jacob@manifest.com" }
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -34,7 +36,7 @@ environments = [
     "sys_platform == 'linux'"
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 benchmark = [
   "flash-attn",
   "matplotlib",
@@ -43,3 +45,29 @@ benchmark = [
 dev = [
   "twine"
 ]
+
+[tool.cibuildwheel]
+# Only build for Linux (since CUDA is required)
+build = ["cp311-manylinux*"]
+skip = ["*-win*", "*-macos*"]
+archs = ["x86_64"]
+build-frontend = "build"
+build-verbosity = 1
+
+before-all = [
+    "yum install -y yum-utils",
+    "yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo",
+    "yum clean all",
+    "yum -y install cuda-toolkit-12-4",
+    "ln -s /usr/local/cuda-12.4 /usr/local/cuda"
+]
+
+manylinux-x86_64-image = "manylinux2014"
+
+[tool.cibuildwheel.linux]
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --plat manylinux2014_x86_64 --exclude libtorch_cpu.so --exclude libtorch_python.so --exclude libc10.so --exclude libtorch_cuda.so --exclude libshm.so --exclude libtorch_global_deps.so --exclude libc10_cuda.so --exclude libcaffe2_nvrtc.so --exclude libtorch_python.so --exclude libtorch_cpu.so --exclude libtorch_cuda.so --exclude libc10.so --exclude libtorch.so --exclude libtorch_cuda_linalg.so"
+
+[tool.cibuildwheel.environment]
+CUDA_HOME = "/usr/local/cuda"
+PATH = "/usr/local/cuda/bin:$PATH"
+LD_LIBRARY_PATH = "/usr/local/cuda/lib64:$LD_LIBRARY_PATH"

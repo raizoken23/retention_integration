@@ -16,7 +16,7 @@ def compute_expanded_dim_size(head_size, deg):
     assert deg == 2, "Only deg=2 is supported"
     return ((InnerBlock // OuterBlock + head_size // OuterBlock) * (head_size // InnerBlock) // 2) * (InnerBlock * OuterBlock)
 
-@torch.library.custom_op('state_kernel::query_state_forward', mutates_args=('Y',), device_types='cuda')
+@torch.library.custom_op('power_attention::query_state_forward', mutates_args=('Y',), device_types='cuda')
 def query_state_fwd(Q : torch.Tensor, S : torch.Tensor,
                     Y : Optional[torch.Tensor],
                     rowmax : Optional[torch.Tensor], deg : int,

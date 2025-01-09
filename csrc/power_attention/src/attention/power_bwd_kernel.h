@@ -788,7 +788,7 @@ using namespace cute;
 //     // Sum acc_dGK
 //     if constexpr (IsGating) {
 //         SumOp<float> sum_op;
-//         state_kernel::quad_allreduce_mod_(acc_dGK, acc_dGK, sum_op); // sum over threads that have the same mod 4
+//         power_attention::quad_allreduce_mod_(acc_dGK, acc_dGK, sum_op); // sum over threads that have the same mod 4
 //         const int warp_id = tidx / 32;
 //         constexpr int warp_group_max = Kernel_traits::AtomLayoutMSdP - 1;
 //         // warp reduce
@@ -2218,7 +2218,7 @@ inline __device__ void compute_dq_dk_dv_1colblock(const Params &params, const in
         Tensor acc_s = partition_fragment_C(tiled_mma_sdp, Shape<Int<kBlockM>, Int<kBlockN>>{});  // (MMA=4, MMA_N, MMA_N)
         clear(acc_s);
         // makes sure Q, GQ, rowmax are loaded
-        state_kernel::cp_async_wait<Double_buffer ? 1 : 0>();
+        power_attention::cp_async_wait<Double_buffer ? 1 : 0>();
         __syncthreads();
 
 #ifdef DEBUG_POWER_BWD_DKDVDQ
@@ -2617,7 +2617,7 @@ inline __device__ void compute_dq_dk_dv_1colblock(const Params &params, const in
     // Sum acc_dGK
     if constexpr (IsGating) {
         SumOp<float> sum_op;
-        state_kernel::quad_allreduce_mod_(acc_dGK, acc_dGK, sum_op); // sum over threads that have the same mod 4
+        power_attention::quad_allreduce_mod_(acc_dGK, acc_dGK, sum_op); // sum over threads that have the same mod 4
         const int warp_id = tidx / 32;
         constexpr int warp_group_max = Kernel_traits::AtomLayoutMSdP - 1;
         // warp reduce

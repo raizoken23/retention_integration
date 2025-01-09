@@ -69,7 +69,7 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
         cs_K = K * torch.exp(log_discount_weights).unsqueeze(-1).to(K.dtype)
     else:
         cs_K = K
-    S = _chunk_state(cs_K.contiguous(), V.contiguous())
+    S = _update_state(cs_K.contiguous(), V.contiguous())
 
     # Accumulate
     if gating:
@@ -104,7 +104,7 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
     return (attn_Y + qs_Y).reshape(b, t, hq, d)
 
 
-def _chunk_state(K, V):
+def _update_state(K, V):
     return torch.einsum('bnchD,bnchd->bnhDd', K, V)
 
 def _query_state(Q, S):

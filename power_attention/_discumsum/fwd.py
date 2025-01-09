@@ -8,7 +8,7 @@
 import torch
 from power_attention_cuda import discumsum as discumsum_cuda
 
-@torch.library.custom_op('state_kernel::discumsum_fwd', mutates_args=(), device_types='cuda')
+@torch.library.custom_op('power_attention::discumsum_fwd', mutates_args=(), device_types='cuda')
 def discumsum_fwd(X : torch.Tensor, log_G : torch.Tensor) -> torch.Tensor:
     """Compute discounted cumulative sum along time axis.
 

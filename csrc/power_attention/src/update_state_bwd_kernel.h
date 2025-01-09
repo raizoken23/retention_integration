@@ -11,16 +11,16 @@
 #include "utils.h"
 #include "sympow.h"
 
-// #define CHUNK_STATE_BWD_DEBUG 1
+// #define UPDATE_STATE_BWD_DEBUG 1
 #define DEBUG_THREAD_CSBWD (tid == 0 && kid == 0 && head_id == 0 && batch_id == 0 && chunk_id == 0)
-namespace state_kernel
+namespace power_attention
 {
 
     using namespace cute;
 
 
     template <typename Kernel_traits, bool IsEvenN>
-    __global__ void __launch_bounds__(Kernel_traits::NWarps *cutlass::NumThreadsPerWarp, 1) chunk_state_kernel_bwd(__grid_constant__ const Chunk_state_bwd_params params)
+    __global__ void __launch_bounds__(Kernel_traits::NWarps *cutlass::NumThreadsPerWarp, 1) update_state_kernel_bwd(__grid_constant__ const Update_state_bwd_params params)
     {
         using Element = typename Kernel_traits::Element;
         using ElementAccum = typename Kernel_traits::ElementAccum;
@@ -164,7 +164,7 @@ namespace state_kernel
         auto load_dS = [&]() {
             Tensor cdS = make_identity_tensor(Shape<Int<BlockD>, Int<Headdim>>{});
             Tensor tdScdS = gmem_thr_copy_dS.partition_S(cdS);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dS, tdSgdS, tdSsdS, tdScdS, BlockD);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dS, tdSgdS, tdSsdS, tdScdS, BlockD);
             tdSgdS.data() = tdSgdS.data() + index_t(BlockD * Headdim);
         };
         auto bump_sdS = [&](const int dblock) {
@@ -175,15 +175,15 @@ namespace state_kernel
         auto load_K = [&]() {
             Tensor cK = make_identity_tensor(Shape<Int<BlockK>, Int<Headdim>>{});
             Tensor tKcK = gmem_thr_copy_K.partition_S(cK);
-            state_kernel::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_K, tKgK, tKsK, tKcK, std::min(BlockK, params.chunk_seq_len));
+            power_attention::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_K, tKgK, tKsK, tKcK, std::min(BlockK, params.chunk_seq_len));
         };
         auto load_V = [&]() {
             Tensor cV = make_identity_tensor(Shape<Int<BlockK>, Int<Headdim>>{});
             Tensor tVcV = gmem_thr_copy_V.partition_S(cV);
-            state_kernel::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_V, tVgV, tVsV, tVcV, std::min(BlockK, params.chunk_seq_len));
+            power_attention::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_V, tVgV, tVsV, tVcV, std::min(BlockK, params.chunk_seq_len));
         };
 
-        state_kernel::SymowStateExpanderBlockP2<Kernel_traits> sympow;
+        power_attention::SymowStateExpanderBlockP2<Kernel_traits> sympow;
         
         // Steps:
         // In each iteration, do:
@@ -225,7 +225,7 @@ namespace state_kernel
             cute::cp_async_wait<DoubleBuffer ? 1 : 0>();
             __syncthreads();
 
-#ifdef CHUNK_STATE_BWD_DEBUG
+#ifdef UPDATE_STATE_BWD_DEBUG
             if (DEBUG_THREAD_CSBWD) {
                 printf("d_block: %d, sdS: \n", d_block);
                 Tensor sdS_now = make_tensor(sdS.data() + (DoubleBuffer ? (d_block % 2 == 0 ? 0 : size(sdS)) : 0), sdS.layout());
@@ -248,7 +248,7 @@ namespace state_kernel
             // expand state
             Tensor tdVrPK = sympow.expandState(sK, tiled_mma, inner_bid, outer_bid);
 
-#ifdef CHUNK_STATE_BWD_DEBUG
+#ifdef UPDATE_STATE_BWD_DEBUG
             Tensor tdVsPK_ = thr_mma.partition_A(sPK);
             cute::copy(tdVrPK, tdVsPK_);
             __syncthreads();
@@ -262,7 +262,7 @@ namespace state_kernel
 
             // matmul for dv
             Tensor tdVrdSt = thr_mma.partition_fragment_B(sdSt);
-            state_kernel::gemm_rs(acc_dv, tdVrPK, tdVrdSt, tdVsdSt, tiled_mma, smem_tiled_copy_dSt, smem_thr_copy_dSt);
+            power_attention::gemm_rs(acc_dv, tdVrPK, tdVrdSt, tdVsdSt, tiled_mma, smem_tiled_copy_dSt, smem_thr_copy_dSt);
             if constexpr (DoubleBuffer) {
                 tdVsdSt.data() = tdVsdSt.data() + (d_block % 2 == 0 ? size(sdSt) : -size(sdSt));
             }
@@ -272,9 +272,9 @@ namespace state_kernel
             
             Tensor tdPKrdS = thr_mma.partition_fragment_B(sdS);
             if (d_block > 0) {
-                state_kernel::gemm_rs(acc_dpk, tdPKrV, tdPKrdS, tdPKsdS, tiled_mma, smem_tiled_copy_dS, smem_thr_copy_dS);
+                power_attention::gemm_rs(acc_dpk, tdPKrV, tdPKrdS, tdPKsdS, tiled_mma, smem_tiled_copy_dS, smem_thr_copy_dS);
             } else {
-                state_kernel::gemm(acc_dpk, tdPKrV, tdPKrdS, tdPKsV, tdPKsdS, tiled_mma, smem_tiled_copy_V, smem_tiled_copy_dS, smem_thr_copy_V, smem_thr_copy_dS);
+                power_attention::gemm(acc_dpk, tdPKrV, tdPKrdS, tdPKsV, tdPKsdS, tiled_mma, smem_tiled_copy_V, smem_tiled_copy_dS, smem_thr_copy_V, smem_thr_copy_dS);
             }
             if constexpr (DoubleBuffer) {
                 tdPKsdS.data() = tdPKsdS.data() + int((d_block % 2 == 0 ? size(sdS) : -size(sdS)));
@@ -296,17 +296,17 @@ namespace state_kernel
             Copy_Atom<DefaultCopy, Element>{},
             tiled_mma);
         auto smem_thr_copy_dV = smem_tiled_copy_dV.get_thread_slice(tid);
-        Tensor rdV = state_kernel::convert_type<Element>(acc_dv);
+        Tensor rdV = power_attention::convert_type<Element>(acc_dv);
         Tensor cdV = make_identity_tensor(Shape<Int<BlockK>, Int<Headdim>>{});
         Tensor tdVcsdV = smem_thr_copy_dV.partition_S(cdV);
         Tensor taccdVrdV = smem_thr_copy_dV.retile_S(rdV);
         Tensor taccdVsdV = smem_thr_copy_dV.partition_D(sV);
         // don't need to check Is_even_MN because we won't write OOB elements
         // to gmem anyway
-        state_kernel::copy</*Is_even_MN=*/true>(smem_tiled_copy_dV, taccdVrdV, taccdVsdV, tdVcsdV, BlockK);
+        power_attention::copy</*Is_even_MN=*/true>(smem_tiled_copy_dV, taccdVrdV, taccdVsdV, tdVcsdV, BlockK);
         __syncthreads();
 
-#ifdef CHUNK_STATE_BWD_DEBUG
+#ifdef UPDATE_STATE_BWD_DEBUG
         if (DEBUG_THREAD_CSBWD) {
             printf("sdV: \n");
             print_tensor(sV);
@@ -321,21 +321,21 @@ namespace state_kernel
         Tensor tdVsdV = gmem_thr_copy_dV.partition_S(sV);
         Tensor tdVgdV = gmem_thr_copy_dV.partition_D(gdV);
         Tensor tdVcdV = gmem_thr_copy_dV.partition_S(cdV);
-        state_kernel::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_dV, tdVsdV, tdVgdV, tdVcdV, std::min(BlockK, params.chunk_seq_len - kid * BlockK));
+        power_attention::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_dV, tdVsdV, tdVgdV, tdVcdV, std::min(BlockK, params.chunk_seq_len - kid * BlockK));
         __syncthreads();
 
         // copy dK back to shared memory, reuse sK because we are done with it
         auto smem_tiled_copy_dK = make_tiled_copy_C(Copy_Atom<DefaultCopy, Element>{}, tiled_mma);
         auto smem_thr_copy_dK = smem_tiled_copy_dK.get_thread_slice(tid);
         Tensor cdK = make_identity_tensor(Shape<Int<BlockK>, Int<Headdim>>{});
-        Tensor rdK = state_kernel::convert_type<Element>(acc_dk);
+        Tensor rdK = power_attention::convert_type<Element>(acc_dk);
         Tensor tdKcsdK = smem_thr_copy_dK.partition_S(cdK);
         Tensor taccdKrdK = smem_thr_copy_dK.retile_S(rdK);
         Tensor taccdKsdK = smem_thr_copy_dK.partition_D(sK);
-        state_kernel::copy</*Is_even_MN=*/true>(smem_tiled_copy_dK, taccdKrdK, taccdKsdK, tdKcsdK, BlockK);
+        power_attention::copy</*Is_even_MN=*/true>(smem_tiled_copy_dK, taccdKrdK, taccdKsdK, tdKcsdK, BlockK);
         __syncthreads();
 
-#ifdef CHUNK_STATE_BWD_DEBUG
+#ifdef UPDATE_STATE_BWD_DEBUG
         if (DEBUG_THREAD_CSBWD) {
             printf("sdK: \n");
             print_tensor(sK);
@@ -350,7 +350,7 @@ namespace state_kernel
         Tensor tdKcdK = gmem_thr_copy_dK.partition_S(cdK);
         Tensor tdKsdK = gmem_thr_copy_dK.partition_S(sK);
         Tensor tdKgdK = gmem_thr_copy_dK.partition_D(gdK);
-        state_kernel::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_dK, tdKsdK, tdKgdK, tdKcdK, std::min(BlockK, params.chunk_seq_len - kid * BlockK));
+        power_attention::copy</*Is_even_MN=*/IsEvenN>(gmem_tiled_copy_dK, tdKsdK, tdKgdK, tdKcdK, std::min(BlockK, params.chunk_seq_len - kid * BlockK));
     }
 
-} // namespace state_kernel
+} // namespace power_attention

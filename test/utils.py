@@ -4,7 +4,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 from einops import rearrange
-from power_attention.power_full import PowerAttentionKernel
+from packages.power_attention.power_attention.power_full import PowerAttentionKernel
 # from power_attention.power_attention import SymmetricStateKernel
 from torch.utils._pytree import tree_map
 

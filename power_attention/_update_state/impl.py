@@ -9,14 +9,14 @@ from einops import rearrange
 from torch.utils._pytree import tree_map
 from types import NoneType
 from typing import Tuple
-from power_attention._chunk_state.fwd import ExpandedDim as compute_expanded_dim, chunk_state_fwd
-from power_attention._chunk_state.bwd import chunk_state_bwd
+from power_attention._update_state.fwd import ExpandedDim as compute_expanded_dim, update_state_fwd
+from power_attention._update_state.bwd import update_state_bwd
 from power_attention.timing_utils import report_fwd_bwd
 
 
-# Define the primary chunk_state entrypoint
-@torch.library.custom_op("state_kernel::chunk_state", mutates_args=())
-def chunk_state(K : torch.Tensor, V : torch.Tensor, deg : int) -> torch.Tensor:
+# Define the primary update_state entrypoint
+@torch.library.custom_op("power_attention::update_state", mutates_args=())
+def update_state(K : torch.Tensor, V : torch.Tensor, deg : int) -> torch.Tensor:
     """Compute chunk state forward pass.
     
     Computes the chunk state operation by accumulating key-value pairs into expanded state vectors.
@@ -35,27 +35,27 @@ def chunk_state(K : torch.Tensor, V : torch.Tensor, deg : int) -> torch.Tensor:
         - K, V must have same dtype (fp16 or bf16)
         - chunk_size must be at least 128
     """
-    S = chunk_state_fwd(K, V, deg)
+    S = update_state_fwd(K, V, deg)
     return S
 # Make it traceable
-@torch.library.register_fake("state_kernel::chunk_state")
-def chunk_state_fake(K, V, deg):
+@torch.library.register_fake("power_attention::update_state")
+def update_state_fake(K, V, deg):
     b, n, c, h, d = K.shape
     D = compute_expanded_dim(d, deg)
     return torch.empty(b, n, h, D, d, device=K.device, dtype=K.dtype)
 # Autograd setup
-def chunk_state_setup(ctx, inputs, output):
+def update_state_setup(ctx, inputs, output):
     K, V, deg = inputs
     ctx.save_for_backward(K, V)
     ctx.deg = deg
-def chunk_state_backward(ctx, dS):
+def update_state_backward(ctx, dS):
     K, V = ctx.saved_tensors
     dS = dS.contiguous()
-    dK, dV = chunk_state_bwd(K, V, dS, ctx.deg)
+    dK, dV = update_state_bwd(K, V, dS, ctx.deg)
     return dK, dV, None
 # Register autograd
 torch.library.register_autograd(
-    "state_kernel::chunk_state", chunk_state_backward, setup_context=chunk_state_setup
+    "power_attention::update_state", update_state_backward, setup_context=update_state_setup
 )
 
 # Useful function to create sample inputs
@@ -78,4 +78,4 @@ if __name__ == '__main__':
     print(f"Benchmarking chunk state \n {b=} {n=} {c=} {h=} {d=} {dtype=}")
 
     # benchmark
-    report_fwd_bwd(chunk_state, K, V, deg)
+    report_fwd_bwd(update_state, K, V, deg)

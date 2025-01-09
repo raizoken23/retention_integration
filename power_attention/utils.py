@@ -5,15 +5,13 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial, wraps
 
-# Optional dependencies
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
 import torch
 from torch.utils._pytree import tree_map
 from torch.autograd.profiler import record_function
-from power_attention.checks import clone_grads, create_random_grads, sanity_check
+from state_kernel.checks import clone_grads, create_random_grads, sanity_check
 
 DEFAULT_SEEDS = [40 + i for i in range(2)]
 class DummyCtx:

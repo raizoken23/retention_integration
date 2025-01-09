@@ -214,7 +214,7 @@ struct State_chunk_traits
 
 
 template <typename T, int Headdim_, int Deg_, int ExpandedDim_, int BlockD_, int BlockT_, int NWarps_, int OuterBlock_, int InnerBlock_, int PaddedExpandedDim_, bool DoubleBuffer_ = true, typename Base = State_chunk_traits<T, Headdim_, Deg_, ExpandedDim_, BlockD_, BlockT_, NWarps_, OuterBlock_, InnerBlock_, PaddedExpandedDim_, DoubleBuffer_>>
-struct Chunk_state_bwd_traits : public Base
+struct Update_state_bwd_traits : public Base
 {
     using Element = typename Base::Element;
     using ElementAccum = typename Base::ElementAccum;

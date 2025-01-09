@@ -17,11 +17,11 @@ DTYPE_MAP = {
 SM = [80]  # Sm80 kernels support up to
 DEG = [2]
 HEAD_DIMENSIONS = [32, 64]
-CHUNK_STATE_FWD = """#include "chunk_state_launch_template.h"
+UPDATE_STATE_FWD = """#include "update_state_launch_template.h"
 
 template<>
-void run_compute_chunk_states<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(Chunk_state_params &params, cudaStream_t stream) {{
-    run_chunk_states_fwd_<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(params, stream);
+void run_compute_update_states<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(Update_state_params &params, cudaStream_t stream) {{
+    run_update_states_fwd_<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(params, stream);
 }}
 """
 QUERY_STATE_FWD = """#include "query_state_launch_template.h"
@@ -38,11 +38,11 @@ void run_compute_query_states_bwd<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(Query_state_bwd
     run_compute_query_states_bwd_<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(params, stream);
 }}
 """
-CHUNK_STATE_BWD = """#include "chunk_state_launch_template.h"
+UPDATE_STATE_BWD = """#include "update_state_launch_template.h"
 
 template<>
-void run_compute_chunk_states_bwd<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(Chunk_state_bwd_params &params, cudaStream_t stream) {{
-    run_compute_chunk_states_bwd_<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(params, stream);
+void run_compute_update_states_bwd<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(Update_state_bwd_params &params, cudaStream_t stream) {{
+    run_compute_update_states_bwd_<{DTYPE}, {KQ_HEAD_DIM}, {DEG}>(params, stream);
 }}
 """
 DISCUMSUM_FWD = """#include "discumsum_launch_template.h"
@@ -61,8 +61,8 @@ void run_discumsum_bwd<{DTYPE}>(Discumsum_bwd_params &params, cudaStream_t strea
 """
 
 KERNEL_TEMPLATE_MAP = {
-    'chunk_state_fwd': CHUNK_STATE_FWD,
-    'chunk_state_bwd': CHUNK_STATE_BWD,
+    'update_state_fwd': UPDATE_STATE_FWD,
+    'update_state_bwd': UPDATE_STATE_BWD,
     'query_state_fwd': QUERY_STATE_FWD,
     'query_state_bwd': QUERY_STATE_BWD,
 }

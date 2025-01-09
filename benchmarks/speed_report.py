@@ -8,7 +8,7 @@ from einops import rearrange
 from torch.utils._pytree import tree_map
 
 from power_attention import attention as symmetric_power_attention
-from power_attention import chunk_state as symmetric_power_chunk_state
+from power_attention import update_state as symmetric_power_update_state
 from power_attention import query_state as symmetric_power_query_state
 from power_attention import discumsum
 from power_attention import compute_expanded_dim
@@ -42,7 +42,7 @@ def power_attention_speed_report(batch_size, seqlen, nheads, headdim, dtype, deg
     # Full forward + backward
     times['full'] = time_fn(power_full, Q, K, V, log_G, chunk_size=chunk_size, repeats=repeats)
 
-    # Unpack the internal logic of the kernel interface in order to benchmark chunk_state
+    # Unpack the internal logic of the kernel interface in order to benchmark update_state
     b, t, h, d = batch_size, seqlen, nheads, headdim
     c = chunk_size
     n = t // c
@@ -57,12 +57,12 @@ def power_attention_speed_report(batch_size, seqlen, nheads, headdim, dtype, deg
     else:
         cs_K = K
     cs_K, V = cs_K.contiguous(), V.contiguous()
-    print("timing chunk_state")
-    # Benchmark chunk_state
-    times['chunk_state'] = time_fn(symmetric_power_chunk_state, cs_K, V, deg, repeats=repeats)
+    print("timing update_state")
+    # Benchmark update_state
+    times['update_state'] = time_fn(symmetric_power_update_state, cs_K, V, deg, repeats=repeats)
 
     # Unpack the internal logic of the kernel interface in order to benchmark accumulate_state
-    S, s = symmetric_power_chunk_state(cs_K, V, deg)
+    S, s = symmetric_power_update_state(cs_K, V, deg)
     log_G_chunk_sum = log_G_intrachunk_accum[:,:,-1].contiguous() if gating else None
     print("timing accumulate_state")
     # Benchmark accumulate_state
@@ -123,7 +123,7 @@ for batch_size, seqlen in bs_seqlen_vals:
     all_times[seqlen] = times
 
 # Prepare data for plotting
-components = ['chunk_state', 'accumulate_state', 'local_attention', 'query_state']
+components = ['update_state', 'accumulate_state', 'local_attention', 'query_state']
 x = seqlen_vals
 
 # Calculate y range across all plots

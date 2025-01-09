@@ -1,6 +1,6 @@
 import torch
 import pytest
-from test.utils import *
+from packages.power_attention.test.utils import *
 from power_attention_cuda import discumsum, discumsum_bwd
 
 

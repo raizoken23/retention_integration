@@ -11,7 +11,7 @@
 #include "state.h"
 #include "utils.h"
 
-namespace state_kernel
+namespace power_attention
 {
     using index_t = int64_t;
     using namespace cute;
@@ -424,12 +424,12 @@ namespace state_kernel
         // loaders
         auto load_dout = [&](const bool first_load) {
             if (first_load) {
-                state_kernel::load(gmem_tiled_copy_outX, tdOgdO, tdOsdO, tOcO, 1, std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
+                power_attention::load(gmem_tiled_copy_outX, tdOgdO, tdOsdO, tOcO, 1, std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
 
                 // move pointer to the start of the last block
                 tdOgdO.data() = tdOgdO.data() + index_t(- std::min(params.num_chunks - n_block * NBlock, NBlock) * params.chunk_stride_dout);
             } else {
-                state_kernel::load(gmem_tiled_copy_outX, tdOgdO, tdOsdO, tOcO, std::min(params.num_chunks - n_block * NBlock, NBlock), std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
+                power_attention::load(gmem_tiled_copy_outX, tdOgdO, tdOsdO, tOcO, std::min(params.num_chunks - n_block * NBlock, NBlock), std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
 
                 // move pointer to the start of the last block
                 tdOgdO.data() = tdOgdO.data() + index_t(- NBlock * params.chunk_stride_dout);
@@ -438,12 +438,12 @@ namespace state_kernel
 
         auto load_out = [&](const bool first_load) {
             if (first_load) {
-                state_kernel::load(gmem_tiled_copy_outX, tOgO, tOsO, tOcO, 1, std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
+                power_attention::load(gmem_tiled_copy_outX, tOgO, tOsO, tOcO, 1, std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
 
                 // move pointer to the start of the last block
                 tOgO.data() = tOgO.data() + index_t(- std::min(params.num_chunks - n_block * NBlock - 1, NBlock - 1) * params.chunk_stride_dout);
             } else {
-                state_kernel::load(gmem_tiled_copy_outX, tOgO, tOsO, tOcO, std::min(params.num_chunks - n_block * NBlock, NBlock), std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
+                power_attention::load(gmem_tiled_copy_outX, tOgO, tOsO, tOcO, std::min(params.num_chunks - n_block * NBlock, NBlock), std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride_dout);
 
                 // move pointer to the start of the last block
                 tOgO.data() = tOgO.data() + index_t(- NBlock * params.chunk_stride_dout);
@@ -451,14 +451,14 @@ namespace state_kernel
         };
 
         auto save_dX = [&]() {
-            state_kernel::load<false>(gmem_tiled_copy_dX, tdXsdX, tdXgdX, tdXcdX, std::min(params.num_chunks - n_block * NBlock, NBlock), std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride);
+            power_attention::load<false>(gmem_tiled_copy_dX, tdXsdX, tdXgdX, tdXcdX, std::min(params.num_chunks - n_block * NBlock, NBlock), std::min(params.feature_size - did * DBlock, DBlock), is_last_d_block, -params.chunk_stride);
 
             // move pointer to the start of the previous block
             tdXgdX.data() = tdXgdX.data() + index_t(- NBlock * params.chunk_stride);
         };
 
         auto load_D = [&]() {
-            state_kernel::load1d(gmem_tiled_copy_D, tDgD, tDsD, tDcD, std::min(params.num_chunks - n_block * NBlock, NBlock), -params.chunk_stride_discount);
+            power_attention::load1d(gmem_tiled_copy_D, tDgD, tDsD, tDcD, std::min(params.num_chunks - n_block * NBlock, NBlock), -params.chunk_stride_discount);
 
             // move pointer to the start of the previous block
             tDgD.data() = tDgD.data() + index_t(- NBlock * params.chunk_stride_discount);
@@ -506,7 +506,7 @@ namespace state_kernel
         Tensor rout = make_tensor<Acc_T>(_1{});
         Tensor rD = make_tensor<Discount_T>(_1{});
         Tensor rdD = make_tensor<Discount_T>(_1{});
-        state_kernel::SumOp<Discount_T> sum_op;
+        power_attention::SumOp<Discount_T> sum_op;
 
         clear(rdX);
         clear(rD);
@@ -538,7 +538,7 @@ namespace state_kernel
 
         auto write_dD = [&](const int n) {
             // intra-warp reduction
-            auto dD_sum = state_kernel::Allreduce<32>::run(rdD(0), sum_op);
+            auto dD_sum = power_attention::Allreduce<32>::run(rdD(0), sum_op);
             if (tid % 32 == 0) { atomicAdd(&gdD(n), dD_sum); }
         };
 
@@ -602,7 +602,7 @@ namespace state_kernel
         }
         __syncthreads();
     }
-} // namespace state_kernel
+} // namespace power_attention
 
 template <typename T>
 void run_discumsum_fwd_(Discumsum_params &params, cudaStream_t stream)
@@ -620,7 +620,7 @@ void run_discumsum_fwd_(Discumsum_params &params, cudaStream_t stream)
     const int num_D = (D + DBlock - 1) / DBlock;
     dim3 grid(num_D, H, B);
 
-    using Kernel_traits = state_kernel::Discumsum_traits<T, Discount_T, NWarps, DBlock, NBlock, /*Stages*/ 1>;
+    using Kernel_traits = power_attention::Discumsum_traits<T, Discount_T, NWarps, DBlock, NBlock, /*Stages*/ 1>;
     constexpr int NThreads = Kernel_traits::NThreads;
     constexpr int SmemSize = Kernel_traits::SmemSize;
 
@@ -633,7 +633,7 @@ void run_discumsum_fwd_(Discumsum_params &params, cudaStream_t stream)
     // std::cout << "params.head_stride: " << params.head_stride << std::endl;
     // std::cout << "params.batch_stride: " << params.batch_stride << std::endl;
 
-    state_kernel::discumsum_fwd_kernel<Kernel_traits><<<grid, NThreads, SmemSize, stream>>>(params);
+    power_attention::discumsum_fwd_kernel<Kernel_traits><<<grid, NThreads, SmemSize, stream>>>(params);
     C10_CUDA_KERNEL_LAUNCH_CHECK();
 };
 
@@ -653,7 +653,7 @@ void run_discumsum_bwd_(Discumsum_bwd_params &params, cudaStream_t stream)
     const int num_D = (D + DBlock - 1) / DBlock;
     dim3 grid(num_D, H, B);
 
-    using Kernel_traits = typename state_kernel::Discumsum_bwd_traits<T, Discount_T, NWarps, DBlock, NBlock>;
+    using Kernel_traits = typename power_attention::Discumsum_bwd_traits<T, Discount_T, NWarps, DBlock, NBlock>;
     constexpr int NThreads = Kernel_traits::NThreads;
     constexpr int SmemSize = Kernel_traits::SmemSize;
 
@@ -661,6 +661,6 @@ void run_discumsum_bwd_(Discumsum_bwd_params &params, cudaStream_t stream)
     // std::cout << "NThreads: " << NThreads << std::endl;
     // std::cout << "SmemSize: " << SmemSize << std::endl;
     
-    state_kernel::discumsum_bwd_kernel<Kernel_traits><<<grid, NThreads, SmemSize, stream>>>(params);
+    power_attention::discumsum_bwd_kernel<Kernel_traits><<<grid, NThreads, SmemSize, stream>>>(params);
     C10_CUDA_KERNEL_LAUNCH_CHECK();
 }

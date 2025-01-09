@@ -29,10 +29,10 @@ def profile_flash(cfg: Config):
     V = torch.randn((b, t, h, d), dtype=cfg.dtype, device='cuda')
     flash_attn_func(Q, K, V, dropout_p=0.0, softmax_scale=1.0, causal=True, window_size=(0, 0), similarity=SOFTMAX, deg=4, softcap=0, alibi_slopes=None, deterministic=False, return_attn_probs=False)
 
-def profile_chunk_state(cfg: Config):
+def profile_update_state(cfg: Config):
     kernel = SymmetricStateKernel(cfg)
     Q, K, V = kernel.create_inputs(chunked=True)
-    kernel.chunk_states(K, V)
+    kernel.update_states(K, V)
 
 
 def profile_query_state(cfg: Config):
@@ -48,23 +48,23 @@ def profile_query_state(cfg: Config):
 
 if __name__ == "__main__":
     cfg = Config([1, 65536, 1, 64], 1024, 2, torch.bfloat16, torch.float32, 1e-5)
-    profile_chunk_state(cfg)
+    profile_update_state(cfg)
     # profile_query_state(cfg)
     # b, t, h, d = cfg.shape
     # D = math.comb(cfg.d + cfg.p - 1, cfg.p)
-    # CHUNK_STATE_BLOCK_D = 128
-    # CHUNK_STATE_BLOCK_T = 16
+    # UPDATE_STATE_BLOCK_D = 128
+    # UPDATE_STATE_BLOCK_T = 16
 
-    # chunk_state_v_read_bytes = b * t / cfg.chunk_size * ((D + CHUNK_STATE_BLOCK_D - 1)// CHUNK_STATE_BLOCK_D) * ((cfg.chunk_size / CHUNK_STATE_BLOCK_T) + 1) * CHUNK_STATE_BLOCK_T * d * 2
-    # chunk_state_v_read_requests = chunk_state_v_read_bytes / 32 / 16
+    # update_state_v_read_bytes = b * t / cfg.chunk_size * ((D + UPDATE_STATE_BLOCK_D - 1)// UPDATE_STATE_BLOCK_D) * ((cfg.chunk_size / UPDATE_STATE_BLOCK_T) + 1) * UPDATE_STATE_BLOCK_T * d * 2
+    # update_state_v_read_requests = update_state_v_read_bytes / 32 / 16
 
     # QUERY_STATE_BLOCK_D = 16
     # QUERY_STATE_BLOCK_T = 128
     # query_state_d_read_bytes = b * t / cfg.chunk_size * (cfg.chunk_size // QUERY_STATE_BLOCK_T) * ((D + QUERY_STATE_BLOCK_D - 1) // QUERY_STATE_BLOCK_D) * QUERY_STATE_BLOCK_D * d * 2
     # query_state_d_read_requests = query_state_d_read_bytes / 32 / 16
 
-    # print(f"chunk_state_v_read_bytes: {chunk_state_v_read_bytes}")
-    # print(f"chunk_state_v_read_requests: {chunk_state_v_read_requests}")
+    # print(f"update_state_v_read_bytes: {update_state_v_read_bytes}")
+    # print(f"update_state_v_read_requests: {update_state_v_read_requests}")
     # print(f"query_state_d_read_bytes: {query_state_d_read_bytes}")
     # print(f"query_state_d_read_requests: {query_state_d_read_requests}")
     

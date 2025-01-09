@@ -12,10 +12,10 @@
 #include "sympow.h"
 #include "attention/power_utils.h"
 
-// #define CHUNK_STATE_FWD_DEBUG 1
+// #define UPDATE_STATE_FWD_DEBUG 1
 #define DEBUG_THREAD (tid == 0 && dim_id == 0 && head_id == 0 && batch_id == 0 && chunk_id == 0)
 
-namespace state_kernel
+namespace power_attention
 {
     using namespace cute;
 
@@ -24,7 +24,7 @@ namespace state_kernel
     CUTE_STATIC_ASSERT(rank(S) == rank(D))
 
     template <typename Kernel_traits>
-    __global__ void __launch_bounds__(Kernel_traits::NWarps *cutlass::NumThreadsPerWarp, 1) chunk_state_kernel_fwd(__grid_constant__ const Chunk_state_params params)
+    __global__ void __launch_bounds__(Kernel_traits::NWarps *cutlass::NumThreadsPerWarp, 1) update_state_kernel_fwd(__grid_constant__ const Update_state_params params)
     {
         using Element = typename Kernel_traits::Element;
         using ElementAccum = typename Kernel_traits::ElementAccum;
@@ -48,7 +48,7 @@ namespace state_kernel
 
         // Block index
         const int dim_id = blockIdx.x;
-        const auto info = state_kernel::binfo(dim_id, Kernel_traits::OuterBlock, Kernel_traits::InnerBlock);
+        const auto info = power_attention::binfo(dim_id, Kernel_traits::OuterBlock, Kernel_traits::InnerBlock);
         const auto inner_bid = std::get<0>(info);
         const auto outer_bid = std::get<1>(info);
         const auto is_on_diagonal = std::get<2>(info);
@@ -145,18 +145,18 @@ namespace state_kernel
 
         // Loaders
         auto load_K = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_K, tKgK, tKsK, tKVcKV, std::min(BlockK, params.chunk_seq_len - kblock * BlockK));
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_K, tKgK, tKsK, tKVcKV, std::min(BlockK, params.chunk_seq_len - kblock * BlockK));
             tKgK.data() = tKgK.data() + index_t(-BlockK * params.seq_stride);
         };
         auto load_V = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_V, tVgV, tVsV, tKVcKV, std::min(BlockK, params.chunk_seq_len - kblock * BlockK));
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_V, tVgV, tVsV, tKVcKV, std::min(BlockK, params.chunk_seq_len - kblock * BlockK));
             tVgV.data() = tVgV.data() + index_t(-BlockK * params.seq_stride);
         };
         auto save_Phi = [&]() {
             Tensor cP = make_identity_tensor(gPhi.shape());
             Tensor tPcP = gmem_thr_copy_PhiK.partition_S(cP);
 
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_PhiK, tPsP, tPgP, tPcP, std::min(BlockK, params.chunk_seq_len - kblock * BlockK));
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_PhiK, tPsP, tPgP, tPcP, std::min(BlockK, params.chunk_seq_len - kblock * BlockK));
             tPgP.data() = tPgP.data() + index_t(-BlockK * params.seq_stride_phi);
         };
 
@@ -172,9 +172,9 @@ namespace state_kernel
 
         Tensor acc_o = partition_fragment_C(tiled_mma, Shape<Int<BlockD>, Int<Headdim>>{});
         using regA_layout = decltype(thr_mma.partition_fragment_A(sPKt).layout());
-        using regA_rowcol = decltype(state_kernel::convert_layout_rA_rowcol(regA_layout{}));
+        using regA_rowcol = decltype(power_attention::convert_layout_rA_rowcol(regA_layout{}));
 
-        state_kernel::SymowStateExpanderBlockP2<Kernel_traits> sympow;
+        power_attention::SymowStateExpanderBlockP2<Kernel_traits> sympow;
 
         // main steps:
         // 1. copy D and C to shared memory
@@ -223,7 +223,7 @@ namespace state_kernel
             cute::cp_async_wait<2>();
             __syncthreads();
 
-#ifdef CHUNK_STATE_FWD_DEBUG
+#ifdef UPDATE_STATE_FWD_DEBUG
             __syncthreads();
             if (DEBUG_THREAD) {
                 printf("kblock: %d, outer_bid: %d, inner_bid: %d, is_on_diagonal: %d, sK: \n", kblock, outer_bid, inner_bid, is_on_diagonal);
@@ -247,7 +247,7 @@ namespace state_kernel
                 });
             }
 
-#ifdef CHUNK_STATE_FWD_DEBUG
+#ifdef UPDATE_STATE_FWD_DEBUG
             Tensor tSsPKt_ = thr_mma.partition_A(sPKt);
             cute::copy(tSrPKt, tSsPKt_);
             __syncthreads();
@@ -274,7 +274,7 @@ namespace state_kernel
             cute::cp_async_wait<1>();
             __syncthreads();
 
-#ifdef CHUNK_STATE_FWD_DEBUG
+#ifdef UPDATE_STATE_FWD_DEBUG
             __syncthreads();
             if (DEBUG_THREAD) {
                 printf("kblock: %d, sV: \n", kblock);
@@ -286,7 +286,7 @@ namespace state_kernel
 
             // do mma between phi(K)^T and V
             Tensor tSrVt = thr_mma.partition_fragment_B(sVtNoSwizzle); // ((2, 2), V_feature/8)
-            state_kernel::gemm_rs(acc_o, tSrPKt, tSrVt, tSsVt, tiled_mma, smem_tiled_copy_Vt, smem_thr_copy_Vt);
+            power_attention::gemm_rs(acc_o, tSrPKt, tSrVt, tSsVt, tiled_mma, smem_tiled_copy_Vt, smem_thr_copy_Vt);
             __syncthreads();
 
             // if not double buffer, this is where we load next K
@@ -309,7 +309,7 @@ namespace state_kernel
 
         // copy acc_o to smem first
         // TODO (sean): use stmatrix here
-        Tensor rO = state_kernel::convert_type<Element>(acc_o);
+        Tensor rO = power_attention::convert_type<Element>(acc_o);
         Tensor cO = make_identity_tensor(make_shape(size<0>(gO), size<1>(gO)));
         auto smem_tiled_copy_O = make_tiled_copy_C(typename Kernel_traits::SmemCopyAtomO{}, tiled_mma);
         auto smem_thr_copy_O = smem_tiled_copy_O.get_thread_slice(tid);
@@ -317,10 +317,10 @@ namespace state_kernel
         Tensor taccOrO = smem_thr_copy_O.retile_S(rO);
         Tensor taccOsO = smem_thr_copy_O.partition_D(sO);
 
-        state_kernel::copy</*Is_even_MN=*/true>(smem_tiled_copy_O, taccOrO, taccOsO, tOcsO, BlockD);
+        power_attention::copy</*Is_even_MN=*/true>(smem_tiled_copy_O, taccOrO, taccOsO, tOcsO, BlockD);
         __syncthreads();
 
-#ifdef CHUNK_STATE_FWD_DEBUG
+#ifdef UPDATE_STATE_FWD_DEBUG
         __syncthreads();
         if (DEBUG_THREAD) {
             printf("kblock: %d, sO: \n", kblock);
@@ -338,7 +338,7 @@ namespace state_kernel
         Tensor tOgO = gmem_thr_copy_O.partition_D(gO);
         Tensor tOsO = gmem_thr_copy_O.partition_S(sO);
 
-        state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_O, tOsO, tOgO, tOcO, std::min(BlockD, PaddedExpandedDim - dim_id * BlockD));
+        power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_O, tOsO, tOgO, tOcO, std::min(BlockD, PaddedExpandedDim - dim_id * BlockD));
     }
 
-} // namespace state_kernel
+} // namespace power_attention

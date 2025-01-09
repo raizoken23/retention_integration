@@ -19,7 +19,7 @@
 
 #define DEBUGGER_THREAD_DSDN (threadIdx.x == 0 && did == 0 && head_id == 0 && blockIdx.z == 0)
 #define DEBUGGER_THREAD_DQ (threadIdx.x == 0 && qid == 0 && head_id == 0 && blockIdx.z == 0)
-namespace state_kernel
+namespace power_attention
 {
 
     using namespace cute;
@@ -53,7 +53,7 @@ namespace state_kernel
         // Thread, lane, warp index
         const int tid = threadIdx.x;
         const int did = blockIdx.x;
-        const auto info = state_kernel::binfo(did, OuterBlock, InnerBlock);
+        const auto info = power_attention::binfo(did, OuterBlock, InnerBlock);
         const auto inner_bid = std::get<0>(info);
         const auto outer_bid = std::get<1>(info);
         const auto is_on_diagonal = std::get<2>(info);
@@ -192,29 +192,29 @@ namespace state_kernel
         
         // loaders and bumpers
         auto load_Q = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_Q, tQgQ, tQsQ, tQdYcQdY, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_Q, tQgQ, tQsQ, tQdYcQdY, BlockQ);
             tQgQ.data() = tQgQ.data() + index_t(-BlockQ * params.seq_stride);
         };
         auto load_dY = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dY, tdYgdY, tdYsdY, tQdYcQdY, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dY, tdYgdY, tdYsdY, tQdYcQdY, BlockQ);
             tdYgdY.data() = tdYgdY.data() + index_t(-BlockQ * params.seq_stride);
         };
         auto load_rowmax = [&]() {
             if (params.has_rowmax) {
-                state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_Rowmax, tRMgRM, tRMsRM, tRMcRM, BlockQ);
+                power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_Rowmax, tRMgRM, tRMsRM, tRMcRM, BlockQ);
                 tRMgRM.data() = tRMgRM.data() + index_t(-BlockQ * params.seq_stride_rowmax);
             }
         };
         auto load_log_G = [&]() {
             if (params.gating) {
-                state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_LogG, tlogGglogG, tlogGslogG, tlogGcLogG, BlockQ);
+                power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_LogG, tlogGglogG, tlogGslogG, tlogGcLogG, BlockQ);
                 tlogGglogG.data() = tlogGglogG.data() + index_t(-BlockQ * params.num_heads);
             }
         };
         auto save_Phi = [&]() {
             Tensor cP = make_identity_tensor(gPhi.shape());
             Tensor tPcP = gmem_thr_copy_PhiQ.partition_S(cP);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_PhiQ, tPsP, tPgP, tPcP, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_PhiQ, tPsP, tPgP, tPcP, BlockQ);
             tPgP.data() = tPgP.data() + index_t(-BlockQ * params.num_heads * paddedExpandedDim);
         };
 
@@ -230,7 +230,7 @@ namespace state_kernel
 
         Tensor acc_ds = partition_fragment_C(tiled_mma, Shape<Int<BlockD>, Int<Headdim>>{});
 
-        state_kernel::SymowStateExpanderBlockP2<Kernel_traits> sympow;
+        power_attention::SymowStateExpanderBlockP2<Kernel_traits> sympow;
 
         // Prologue
         clear(acc_ds);
@@ -332,7 +332,7 @@ namespace state_kernel
                 // }
 
                 // wait for dY
-                state_kernel::cp_async_wait<DoubleBuffer ? 2 : 0>();
+                power_attention::cp_async_wait<DoubleBuffer ? 2 : 0>();
                 __syncthreads();
 
 #ifdef QUERY_STATE_BWD_DSDN_DEBUG
@@ -347,7 +347,7 @@ namespace state_kernel
                 Tensor tdSrdYt = thr_mma.partition_fragment_B(sdYt);
                 // TODO: right now we are only scaling dPhi(Q), if this becomes a problem we can 
                 // scale dY instead, at a cost of lower perf
-                state_kernel::gemm_rs<false>(acc_ds, tdSrPQt, tdSrdYt, tdSsdYt, tiled_mma, smem_tiled_copy_dYt, smem_thr_copy_dYt);
+                power_attention::gemm_rs<false>(acc_ds, tdSrPQt, tdSrdYt, tdSsdYt, tiled_mma, smem_tiled_copy_dYt, smem_thr_copy_dYt);
                 __syncthreads();
 
 #ifdef QUERY_STATE_BWD_DSDN_DEBUG
@@ -378,7 +378,7 @@ namespace state_kernel
                 // }
             }
         } else {
-            state_kernel::cp_async_wait<0>();
+            power_attention::cp_async_wait<0>();
             __syncthreads();
         }
 
@@ -387,7 +387,7 @@ namespace state_kernel
         __syncthreads();
 
         // copy acc_ds back to shared memory first
-        Tensor rdS = state_kernel::convert_type<Element>(acc_ds);
+        Tensor rdS = power_attention::convert_type<Element>(acc_ds);
         auto smem_tiled_copy_dS = make_tiled_copy_C(Copy_Atom<DefaultCopy, Element>{}, tiled_mma);
         auto smem_thr_copy_dS = smem_tiled_copy_dS.get_thread_slice(tid);
         Tensor taccdSrdS = smem_thr_copy_dS.retile_S(rdS);
@@ -413,7 +413,7 @@ namespace state_kernel
         Tensor tdSsdS = gmem_thr_copy_dS.partition_S(sdS);
         Tensor tdSgdS = gmem_thr_copy_dS.partition_D(gdS);
 
-        state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dS, tdSsdS, tdSgdS, tdScdS, BlockD);
+        power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dS, tdSsdS, tdSgdS, tdScdS, BlockD);
     }
 
     template <typename Kernel_traits>
@@ -580,12 +580,12 @@ namespace state_kernel
         auto load_Q = [&]() {
             Tensor cQ = make_identity_tensor(make_shape(size<0>(sQ), size<1>(sQ)));
             Tensor tQcQ = gmem_thr_copy_Q.partition_S(cQ);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_Q, tQgQ, tQsQ, tQcQ, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_Q, tQgQ, tQsQ, tQcQ, BlockQ);
         };
         auto load_dY = [&]() {
             Tensor cdY = make_identity_tensor(make_shape(size<0>(sdY), size<1>(sdY)));
             Tensor tdYcdY = gmem_thr_copy_dY.partition_S(cdY);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dY, tdYgdY, tdYsdY, tdYcdY, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dY, tdYgdY, tdYsdY, tdYcdY, BlockQ);
         };
         auto save_dY = [&]() {
             typename Kernel_traits::GmemCopyTiledQ gmem_tiled_copy_back_dY;
@@ -594,24 +594,24 @@ namespace state_kernel
             Tensor tdYcdY_back = gmem_thr_copy_back_dY.partition_D(cdY);
             Tensor tdYsdY_back = gmem_thr_copy_back_dY.partition_S(sdY);
             Tensor tdYgdY_back = gmem_thr_copy_back_dY.partition_D(gdY_attn);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_back_dY, tdYsdY_back, tdYgdY_back, tdYcdY_back, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_back_dY, tdYsdY_back, tdYgdY_back, tdYcdY_back, BlockQ);
         };
         auto load_S = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_S, tSgS, tSsS, tScS, BlockD);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_S, tSgS, tSsS, tScS, BlockD);
             tSgS.data() = tSgS.data() + int(BlockD * Headdim);
         };
         auto load_rowmax = [&]() {
             if (params.has_rowmax) {
                 Tensor cRM = make_identity_tensor(make_shape(size(srowmax)));
                 Tensor tRMcRM = gmem_thr_copy_rowmax.partition_S(cRM);
-                state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_rowmax, tRMgRM, tRMsRM, tRMcRM, BlockQ);
+                power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_rowmax, tRMgRM, tRMsRM, tRMcRM, BlockQ);
             }
         };
         auto load_logG = [&]() {
             if (params.gating) {
                 Tensor clogG = make_identity_tensor(make_shape(size(slogG)));
                 Tensor tlogGclogG = gmem_thr_copy_logG.partition_S(clogG);
-                state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_logG, tlogGglogG, tlogGslogG, tlogGclogG, BlockQ);
+                power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_logG, tlogGglogG, tlogGslogG, tlogGclogG, BlockQ);
             }
         };
         auto bump_sS = [&](const int d_block) {
@@ -658,7 +658,7 @@ namespace state_kernel
         cute::cp_async_fence();
 
         if constexpr (dY_in_regs) {
-            state_kernel::cp_async_wait<1>();
+            power_attention::cp_async_wait<1>();
             __syncthreads();
             // read dY from shared memory
             Tensor tdPQrdY_copy_view = smem_thr_copy_dY.retile_D(tdPQrdY);
@@ -700,7 +700,7 @@ namespace state_kernel
                         CUTE_UNROLL
                         for (int n = 0; n < size<1>(tdPQrdY_rowcol); n++) {
                             rdY_attn_rowcol(m, n) = tdPQrdY_rowcol(m, n);
-                            tdPQrdY_rowcol(m, n) = static_cast<Element>(state_kernel::fp32_mul(tdPQrdY_rowcol(m, n), r_rowmax(m)));
+                            tdPQrdY_rowcol(m, n) = static_cast<Element>(power_attention::fp32_mul(tdPQrdY_rowcol(m, n), r_rowmax(m)));
                         }
                     }
                 } else { // if zero initial state and chunk_id == 0, just copy dY to rdY_attn
@@ -720,7 +720,7 @@ namespace state_kernel
                 save_dY();
             } else if (params.use_multiplier && (params.non_zero_initial_state || chunk_id > 0)) {
                 // if not fused, we need to scale dY by multiplier^2, scale dy by multiplier^2
-                state_kernel::elementwise_product(tdPQrdY, params.multiplier, tdPQrdY);
+                power_attention::elementwise_product(tdPQrdY, params.multiplier, tdPQrdY);
             }
 
 #ifdef QUERY_STATE_BWD_DQ_DEBUG
@@ -787,11 +787,11 @@ namespace state_kernel
 
                 Tensor tdPQrS = thr_mma.partition_fragment_B(sS);
                 if (params.has_rowmax) { // if fused, we don't need to scale dY and rdy, it's already done
-                    state_kernel::gemm</*A_in_regs=*/dY_in_regs, /*B_in_regs=*/false, /*rescale_B=*/false, /*rescale_A=*/false>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S);
+                    power_attention::gemm</*A_in_regs=*/dY_in_regs, /*B_in_regs=*/false, /*rescale_B=*/false, /*rescale_A=*/false>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S);
                 } else if (params.use_multiplier) { // if not fused, dY is alread scaled by multiplier if it's already in register, but S needs to be scaled
-                    state_kernel::gemm</*A_in_regs=*/dY_in_regs, /*B_in_regs=*/false, /*rescale_B=*/true, /*rescale_A=*/!dY_in_regs>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S, params.multiplier, params.multiplier);
+                    power_attention::gemm</*A_in_regs=*/dY_in_regs, /*B_in_regs=*/false, /*rescale_B=*/true, /*rescale_A=*/!dY_in_regs>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S, params.multiplier, params.multiplier);
                 } else { // if no scaling is required
-                    state_kernel::gemm</*A_in_regs=*/dY_in_regs, /*B_in_regs=*/false, /*rescale_B=*/false, /*rescale_A=*/false>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S);
+                    power_attention::gemm</*A_in_regs=*/dY_in_regs, /*B_in_regs=*/false, /*rescale_B=*/false, /*rescale_A=*/false>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S);
                 }
                 
                 if constexpr (DoubleBuffer) {
@@ -811,7 +811,7 @@ namespace state_kernel
                 __syncthreads();
             }
         } else {
-            state_kernel::cp_async_wait<0>();
+            power_attention::cp_async_wait<0>();
             __syncthreads();
         }
 
@@ -895,7 +895,7 @@ namespace state_kernel
             Tensor tdlogGcdlogG = gmem_thr_copy_dlogG.partition_S(cdlogG);
             Tensor tdlogGgdlogG = gmem_thr_copy_dlogG.partition_D(gdlogG);
             Tensor tdlogGsdlogG = gmem_thr_copy_dlogG.partition_S(sdlogG);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dlogG, tdlogGsdlogG, tdlogGgdlogG, tdlogGcdlogG, BlockQ);
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dlogG, tdlogGsdlogG, tdlogGgdlogG, tdlogGcdlogG, BlockQ);
         }
 
 #ifdef QUERY_STATE_BWD_DQ_DEBUG
@@ -908,7 +908,7 @@ namespace state_kernel
 
         // convert dQaccum to dQ, put back in shared memory
         Tensor rdQ = make_tensor<Element>(acc_dq.layout());
-        state_kernel::convert_type(acc_dq, rdQ);
+        power_attention::convert_type(acc_dq, rdQ);
         auto smem_tiled_copy_dQ = make_tiled_copy_C(typename Kernel_traits::SmemCopyAtomdQ{}, tiled_mma);
         auto smem_thr_copy_dQ = smem_tiled_copy_dQ.get_thread_slice(tid);
         Tensor taccdQrdQ = smem_thr_copy_dQ.retile_S(rdQ);
@@ -942,7 +942,7 @@ namespace state_kernel
             print("\n");
         }
 #endif
-        state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dQ, tdQsdQ, tdQgdQ, tdQcdQ, BlockQ);
+        power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dQ, tdQsdQ, tdQgdQ, tdQcdQ, BlockQ);
     }
 
     template <typename Kernel_traits, typename Params>
@@ -1201,15 +1201,15 @@ namespace state_kernel
         
         // loaders and bumpers
         auto load_Q = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockQ>(gmem_tiled_copy_Q, tQgQ, tQsQ, tQdYcQdY, std::min(BlockQ, params.chunk_seq_len - q_block * BlockQ));
+            power_attention::copy</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockQ>(gmem_tiled_copy_Q, tQgQ, tQsQ, tQdYcQdY, std::min(BlockQ, params.chunk_seq_len - q_block * BlockQ));
             tQgQ.data() = tQgQ.data() + index_t(-BlockQ * params.seq_stride);
         };
         auto load_dY = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockQ>(gmem_tiled_copy_dY, tdYgdY, tdYsdY, tQdYcQdY, std::min(BlockQ, params.chunk_seq_len - q_block * BlockQ));
+            power_attention::copy</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockQ>(gmem_tiled_copy_dY, tdYgdY, tdYsdY, tQdYcQdY, std::min(BlockQ, params.chunk_seq_len - q_block * BlockQ));
             tdYgdY.data() = tdYgdY.data() + index_t(-BlockQ * params.seq_stride);
         };
         auto load_S = [&]() {
-            state_kernel::copy</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockD>(gmem_tiled_copy_S, tSgS, tSsS, tScS, BlockD);
+            power_attention::copy</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockD>(gmem_tiled_copy_S, tSgS, tSsS, tScS, BlockD);
         };
         auto load_N = [&]() {
             power::copy1d</*Is_even_MN=*/false, /*Clear_OOB_MN=*/true, BlockD>(gmem_tiled_copy_N, tNgN, tNsN, tNcN, BlockD);
@@ -1227,7 +1227,7 @@ namespace state_kernel
         auto save_Phi = [&]() {
             Tensor cP = make_identity_tensor(gPhi.shape());
             Tensor tPcP = gmem_thr_copy_PhiQ.partition_S(cP);
-            state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_PhiQ, tPsP, tPgP, tPcP, std::min(BlockQ, params.chunk_seq_len - q_block * BlockQ));
+            power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_PhiQ, tPsP, tPgP, tPcP, std::min(BlockQ, params.chunk_seq_len - q_block * BlockQ));
             tPgP.data() = tPgP.data() + index_t(-BlockQ * params.num_heads * paddedExpandedDim);
         };
 
@@ -1264,10 +1264,10 @@ namespace state_kernel
 
         Tensor acc_ds = partition_fragment_C(tiled_mma, Shape<Int<BlockD>, Int<Headdim>>{});
         using regA_layout = decltype(thr_mma.partition_fragment_A(sPQt).layout());
-        using regA_rowcol = decltype(state_kernel::convert_layout_rA_rowcol(regA_layout{}));
+        using regA_rowcol = decltype(power_attention::convert_layout_rA_rowcol(regA_layout{}));
         Tensor acc_dn = make_tensor<ElementAccum>(get<0>(regA_rowcol{}));
 
-        state_kernel::SymowStateExpanderBlockP2<Kernel_traits> sympow;
+        power_attention::SymowStateExpanderBlockP2<Kernel_traits> sympow;
 
         // Prologue
         clear(acc_ds);
@@ -1305,17 +1305,17 @@ namespace state_kernel
 
         // if S_in_regs, load them into registers
         if constexpr (S_in_regs) {
-            state_kernel::cp_async_wait<1>();
+            power_attention::cp_async_wait<1>();
             __syncthreads();
             Tensor tdPQrS_copy_view = smem_thr_copy_S.retile_D(tdPQrS);
             cute::copy(smem_tiled_copy_S, tdPQsS, tdPQrS_copy_view);
             if constexpr (rescale) {
-                state_kernel::elementwise_product(tdPQrS, params.multiplier, tdPQrS);
+                power_attention::elementwise_product(tdPQrS, params.multiplier, tdPQrS);
             }
         }
 
         // Main loop
-        const auto info = state_kernel::binfo(did, OuterBlock, InnerBlock);
+        const auto info = power_attention::binfo(did, OuterBlock, InnerBlock);
         const auto inner_bid = std::get<0>(info);
         const auto outer_bid = std::get<1>(info);
         const auto is_on_diagonal = std::get<2>(info);
@@ -1333,9 +1333,9 @@ namespace state_kernel
 
             // wait for Q, logG, dY, and dy
             if constexpr (DoubleBuffer) {
-                state_kernel::cp_async_wait<1>();
+                power_attention::cp_async_wait<1>();
             } else {
-                state_kernel::cp_async_wait<0>();
+                power_attention::cp_async_wait<0>();
             }
             __syncthreads();
 
@@ -1376,7 +1376,7 @@ namespace state_kernel
             // }
 
             // ϕ(Q)^T @ dY -> dS
-            state_kernel::gemm_rs<rescale>(acc_ds, tdSrPQt, tdSrdYt, tdSsdYt, tiled_mma, smem_tiled_copy_dYt, smem_thr_copy_dYt, params.multiplier);
+            power_attention::gemm_rs<rescale>(acc_ds, tdSrPQt, tdSrdYt, tdSsdYt, tiled_mma, smem_tiled_copy_dYt, smem_thr_copy_dYt, params.multiplier);
 
 #ifdef QUERY_STATE_BWD_DEBUG
             if (DEBUGGER_THREAD_QSBWD) {
@@ -1393,7 +1393,7 @@ namespace state_kernel
             Tensor acc_dpq = partition_fragment_C(tiled_mma_trans, Shape<Int<BlockQ>, Int<BlockD>>{}); // ((2, 2), TILE_Q, TILED_D)
             clear(acc_dpq);
             Tensor tdPQrdY = thr_mma_trans.partition_fragment_A(sdY);
-            state_kernel::gemm</*A_in_regs=*/false, /*B_in_regs=*/S_in_regs, /*rescale_B=*/!S_in_regs, /*rescale_A=*/rescale>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma_trans, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S, params.multiplier, params.multiplier);
+            power_attention::gemm</*A_in_regs=*/false, /*B_in_regs=*/S_in_regs, /*rescale_B=*/!S_in_regs, /*rescale_A=*/rescale>(acc_dpq, tdPQrdY, tdPQrS, tdPQsdY, tdPQsS, tiled_mma_trans, smem_tiled_copy_dY, smem_tiled_copy_S, smem_thr_copy_dY, smem_thr_copy_S, params.multiplier, params.multiplier);
 
 #ifdef QUERY_STATE_BWD_DEBUG
             if (DEBUGGER_THREAD_QSBWD) {
@@ -1450,10 +1450,10 @@ namespace state_kernel
         // Epilogue
         // First reduce acc_dn within warps
         __syncthreads();
-        state_kernel::SumOp<ElementAccum> sum_op;
+        power_attention::SumOp<ElementAccum> sum_op;
         CUTE_UNROLL
         for (int i = 0; i < size(acc_dn); i++) {
-            acc_dn[i] = state_kernel::Allreduce<4>::run(acc_dn[i], sum_op);
+            acc_dn[i] = power_attention::Allreduce<4>::run(acc_dn[i], sum_op);
         }
 
         // write back to shared memory first
@@ -1487,10 +1487,10 @@ namespace state_kernel
         Tensor cdN = make_identity_tensor(make_shape(size(gdN)));
         Tensor tdNcdN = gmem_thr_copy_dN.partition_S(cdN);
 
-        state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dN, tdNsdN, tdNgdN, tdNcdN, std::min(BlockD, paddedExpandedDim - did * BlockD));
+        power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dN, tdNsdN, tdNgdN, tdNcdN, std::min(BlockD, paddedExpandedDim - did * BlockD));
 
         // copy acc_ds back to shared memory first
-        Tensor rdS = state_kernel::convert_type<Element>(acc_ds);
+        Tensor rdS = power_attention::convert_type<Element>(acc_ds);
         Tensor cdS = make_identity_tensor(make_shape(size<0>(gdS), size<1>(gdS)));
         auto smem_tiled_copy_dS = make_tiled_copy_C(Copy_Atom<DefaultCopy, Element>{}, tiled_mma);
         auto smem_thr_copy_dS = smem_tiled_copy_dS.get_thread_slice(tid);
@@ -1498,7 +1498,7 @@ namespace state_kernel
         Tensor taccdSrdS = smem_thr_copy_dS.retile_S(rdS);
         Tensor taccdSsdS = smem_thr_copy_dS.partition_D(sdS);
 
-        state_kernel::copy</*Is_even_MN=*/true>(smem_tiled_copy_dS, taccdSrdS, taccdSsdS, tdScsdS, BlockD);
+        power_attention::copy</*Is_even_MN=*/true>(smem_tiled_copy_dS, taccdSrdS, taccdSsdS, tdScsdS, BlockD);
         __syncthreads();
 
 
@@ -1518,7 +1518,7 @@ namespace state_kernel
         Tensor tdSsdS = gmem_thr_copy_dS.partition_S(sdS);
         Tensor tdSgdS = gmem_thr_copy_dS.partition_D(gdS);
 
-        state_kernel::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dS, tdSsdS, tdSgdS, tdScdS, std::min(BlockD, paddedExpandedDim - did * BlockD));
+        power_attention::copy</*Is_even_MN=*/false>(gmem_tiled_copy_dS, tdSsdS, tdSgdS, tdScdS, std::min(BlockD, paddedExpandedDim - did * BlockD));
     }
 
     template <typename Kernel_traits>
@@ -1536,4 +1536,4 @@ namespace state_kernel
         }
     }
 
-} // namespace state_kernel
+} // namespace power_attention

@@ -743,7 +743,7 @@ dependencies = [
     { name = "torch", marker = "sys_platform == 'linux'" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 benchmark = [
     { name = "flash-attn", marker = "sys_platform == 'linux'" },
     { name = "matplotlib", marker = "sys_platform == 'linux'" },
@@ -756,16 +756,12 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "einops" },
+    { name = "flash-attn", marker = "extra == 'benchmark'" },
+    { name = "matplotlib", marker = "extra == 'benchmark'" },
+    { name = "pandas", marker = "extra == 'benchmark'" },
     { name = "torch", specifier = ">=2.5" },
+    { name = "twine", marker = "extra == 'dev'" },
 ]
-
-[package.metadata.requires-dev]
-benchmark = [
-    { name = "flash-attn" },
-    { name = "matplotlib" },
-    { name = "pandas" },
-]
-dev = [{ name = "twine" }]
 
 [[package]]
 name = "pycparser"

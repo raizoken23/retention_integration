@@ -1,5 +1,5 @@
 VERSION := $(shell python3 -c "import re; print(re.search(r'version = (\"[^\"]+\")', open('pyproject.toml').read()).group(1))")
-WHEEL_NAME := power-attention-$(VERSION)-cp311-cp311-linux_x86_64
+WHEEL_NAME := power-attention-$(VERSION)-cp311-cp311-manylinux_x86_64
 
 # Fast build configuration
 FAST_IS_EVEN_MN ?= true
@@ -60,7 +60,7 @@ dev:
 report:
 	python power_attention/_attention/impl.py
 	@echo "\n"
-	python power_attention/_chunk_state/impl.py
+	python power_attention/_update_state/impl.py
 	@echo "\n"
 	python power_attention/_query_state/impl.py
 	@echo "\n"

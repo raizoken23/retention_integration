@@ -3,7 +3,7 @@
 ## IMPLEMENTATION ##
 import torch
 from power_attention_cuda import (
-    chunk_states_bwd,
+    update_states_bwd,
     InnerBlock_DT,
     OuterBlock_DT,
 )
@@ -12,8 +12,8 @@ from typing import Tuple
 def ExpandedDim(head_size, deg):
     return ((InnerBlock_DT // OuterBlock_DT + head_size // OuterBlock_DT) * (head_size // InnerBlock_DT) // 2) * (InnerBlock_DT * OuterBlock_DT)
 
-@torch.library.custom_op("state_kernel::chunk_state_bwd", mutates_args=(), device_types='cuda')
-def chunk_state_bwd(K : torch.Tensor, V : torch.Tensor, dS : torch.Tensor, deg : int) -> Tuple[torch.Tensor, torch.Tensor]:
+@torch.library.custom_op("power_attention::update_state_bwd", mutates_args=(), device_types='cuda')
+def update_state_bwd(K : torch.Tensor, V : torch.Tensor, dS : torch.Tensor, deg : int) -> Tuple[torch.Tensor, torch.Tensor]:
     """Compute gradients for chunk state operation.
 
     Computes gradients with respect to inputs K and V for the chunk state operation.
@@ -33,11 +33,11 @@ def chunk_state_bwd(K : torch.Tensor, V : torch.Tensor, dS : torch.Tensor, deg :
         - expanded_dim is computed based on head_size and deg
         - fp16 or bf16
     """
-    dK, dV = chunk_states_bwd(K, V, dS, deg)
+    dK, dV = update_states_bwd(K, V, dS, deg)
     return dK, dV
 
-@chunk_state_bwd.register_fake
-def chunk_state_bwd_fake(K, V, dS, deg):
+@update_state_bwd.register_fake
+def update_state_bwd_fake(K, V, dS, deg):
     return torch.empty_like(K), torch.empty_like(V)
 
 # Useful function to create sample inputs
@@ -59,9 +59,9 @@ if __name__ == '__main__':
     K, V, dS, deg = create_inputs(b, n, c, h, d, dtype=dtype, device='cuda')
     # Run function
     with torch.no_grad():
-        dK, dV = chunk_state_bwd(K, V, dS, deg)
+        dK, dV = update_state_bwd(K, V, dS, deg)
     # Compile function, fullgraph=True confirms no graph breaks
-    compiled_fn = torch.compile(chunk_state_bwd, fullgraph=True)
+    compiled_fn = torch.compile(update_state_bwd, fullgraph=True)
     with torch.no_grad():
         for _ in range(3):
             dK, dV = compiled_fn(K, V, dS, deg)
