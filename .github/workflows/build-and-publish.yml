@@ -33,7 +33,6 @@ jobs:
       - name: Install CUDA
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
-          sub-packages: '["nvcc"]'
           linux-local-args: '["--toolkit"]'
           cuda: ${{ matrix.cuda }}
           method: 'network'
