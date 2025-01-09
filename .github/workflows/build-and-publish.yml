@@ -5,15 +5,15 @@ on: [push, pull_request]
 jobs:
   build:
     name: Build for Python ${{ matrix.python }} with CUDA ${{ matrix.cuda }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python:
           - "3.11"
-          - "3.12"
-          - "3.13"
+          #- "3.12"
+          #- "3.13"
         cuda:
-          - "12.4"
+          - "12.4.1"
 
     env:
       UV_PYTHON: ${{ matrix.python }}
@@ -33,6 +33,8 @@ jobs:
       - name: Install CUDA
         uses: Jimver/cuda-toolkit@v0.2.14
         with:
+          sub-packages: '["nvcc"]'
+          linux-local-args: '["--toolkit"]'
           cuda: ${{ matrix.cuda }}
           method: 'network'
 
