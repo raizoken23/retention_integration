@@ -34,26 +34,12 @@ environments = [
     "sys_platform == 'linux'"
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 benchmark = [
   "flash-attn",
   "matplotlib",
   "pandas"
 ]
-
-[tool.cibuildwheel]
-build = "cp311-*"
-build-frontend = "build[uv]"
-before-all = [
-    "git submodule update --init --recursive",
-    "yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo",
-    "yum clean all",
-    "yum -y install cuda-toolkit-12-4",
-    "ln -s /usr/local/cuda-12.4 /usr/local/cuda"
+dev = [
+  "twine"
 ]
-repair-wheel-command = "LD_LIBRARY_PATH=$(python -c 'import torch; print(torch.__path__[0])')/lib:$LD_LIBRARY_PATH auditwheel repair -w {dest_dir} {wheel}"
-
-[tool.cibuildwheel.environment]
-CUDA_HOME = "/usr/local/cuda"
-PATH = '/usr/local/cuda/bin:$PATH'
-LD_LIBRARY_PATH = '/usr/local/cuda/lib64:$LD_LIBRARY_PATH'
