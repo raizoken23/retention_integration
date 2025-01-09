@@ -104,10 +104,6 @@ if os.path.exists(os.path.join(torch_dir, "include", "ATen", "CUDAGeneratorImpl.
 
 
 def get_cuda_sources():
-    base_sources = [
-        'csrc/power_attention/api.cpp',
-    ]
-
     if os.environ.get('FAST_BUILD'):
         # Get configured values
         head_dim = int(os.environ.get('FAST_HEAD_DIM', '64'))
@@ -226,12 +222,6 @@ ALL_CUDA_SOURCES = [
     'csrc/power_attention/src/discumsum_bwd_fp32_sm80.cu',
 ]
 
-print(Path(this_dir))
-print(Path(this_dir))
-print(Path(this_dir))
-print(Path(this_dir))
-print(Path(this_dir))
-
 ext_modules.append(
     CUDAExtension(
         name='power_attention_cuda',
@@ -301,10 +291,5 @@ setup(
     cmdclass={
         'bdist_wheel': CustomBdistWheel,
         'build_ext': NinjaBuildExtension,
-    },
-    python_requires='>=3.11',
-    install_requires=[
-        'torch',
-        'einops',
-    ]
+    }
 )

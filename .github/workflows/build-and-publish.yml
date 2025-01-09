@@ -1,0 +1,62 @@
+name: Build and Publish
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build for Python ${{ matrix.python }} with CUDA ${{ matrix.cuda }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+        cuda: ['12.4']
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install CUDA
+        uses: Jimver/cuda-toolkit@v0.2.14
+        with:
+          cuda: ${{ matrix.cuda }}
+          method: 'network'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build wheel
+        env:
+          CC: gcc
+          CXX: g++
+          CUDA_HOME: /usr/local/cuda
+        run: |
+          uv pip install build
+          uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-py${{ matrix.python }}-cuda${{ matrix.cuda }}
+          path: dist/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.8.14
