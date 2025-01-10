@@ -1,80 +1,71 @@
-VERSION := $(shell python3 -c "import re; print(re.search(r'version = (\"[^\"]+\")', open('pyproject.toml').read()).group(1))")
-WHEEL_NAME := power-attention-$(VERSION)-cp311-cp311-manylinux_x86_64
+# Get version from pyproject.toml
+UV_RUN := uv run --no-project
+VERSION := $(shell $(UV_RUN) python scripts/get_version.py)
+PACKAGE_NAME := power-attention
 
-# Fast build configuration
-FAST_IS_EVEN_MN ?= true
-FAST_IS_EVEN_K ?= true
-FAST_DEG ?= 2
-FAST_STATE_DEG ?= 2
-FAST_GATING ?= true
-FAST_FLASH_EQUIVALENT ?= false
-FAST_NORMAL_SPACE ?= true
-FAST_IS_CAUSAL ?= true
-FAST_IS_FP16 ?= true
-FAST_HEAD_DIM ?= 64
+.PHONY: all build test benchmark release release-test clean check-version
 
-export FAST_IS_EVEN_MN
-export FAST_IS_EVEN_K
-export FAST_DEG
-export FAST_GATING
-export FAST_FLASH_EQUIVALENT
-export FAST_NORMAL_SPACE
-export FAST_IS_CAUSAL
-export FAST_IS_FP16
-export FAST_HEAD_DIM
+all: build test
 
-.PHONY: build dev test benchmark install dev report
+deps:
+	uv sync --no-install-project --group dev --group train
 
-clean_dist:
-	rm -rf dist/*
-
-create_dist: clean_dist
-	python setup.py sdist
-
-upload_package: create_dist
-	twine upload dist/*
-
-build:
-	python setup.py bdist_wheel
-
+# Development commands
 test:
-	pytest test/test_all.py
+	$(UV_RUN) pytest power_attention/tests.py -v
 
 benchmark:
-	cd test && python benchmark.py
+	$(UV_RUN) python test/benchmark.py
 
-install:
-	pip uninstall -y power-attention && pip install dist/$(WHEEL_NAME).whl
-
-debug:
-	DEBUG_POWER_BWD_DKDV=1 DEBUG_POWER_BWD_DQ=1 make build
-	pip uninstall -y power-attention && pip install dist/$(WHEEL_NAME).debug.whl
-
-dev:
-	$(if $(filter-out dev,$(MAKECMDGOALS)),\
-		$(MAKE) build && \
-		cp dist/$(WHEEL_NAME).whl dist/$(WHEEL_NAME).$(filter-out dev,$(MAKECMDGOALS)).whl && \
-		pip uninstall -y power-attention && pip install dist/$(WHEEL_NAME).$(filter-out dev,$(MAKECMDGOALS)).whl, \
-		$(MAKE) build install)
-
-report:
-	python power_attention/_attention/impl.py
-	@echo "\n"
-	python power_attention/_update_state/impl.py
-	@echo "\n"
-	python power_attention/_query_state/impl.py
-	@echo "\n"
-	python power_attention/power_full.py
-	@echo "\n"
-	cd ../../ && python -m measurements.cudoc -k ".*wd.*" -x "convert" python power_attention/power_attention/power_full.py profile && cd packages/power_attention
+# Build commands
+build:
+	CC=gcc CXX=g++ $(UV_RUN) python -m build
 
 fast:
-	FAST_BUILD=1 python setup.py bdist_wheel
-	pip uninstall -y power-attention && pip install dist/$(WHEEL_NAME).whl
+	CC=gcc CXX=g++ FAST_BUILD=1 $(UV_RUN) python -m build
 
-fast-verbose:
-	FAST_BUILD=1 NVCC_VERBOSE=1 python setup.py bdist_wheel
-	pip uninstall -y power-attention && pip install dist/$(WHEEL_NAME).whl
+# Version checking
+check-version:
+	@echo "Local version: $(VERSION)"
+	@$(UV_RUN) python scripts/version_check.py "$(VERSION)" "$(PACKAGE_NAME)"
 
-%:
-	@:
+check-test-version:
+	@echo "Local version: $(VERSION)"
+	@$(UV_RUN) python scripts/version_check.py "$(VERSION)" "$(PACKAGE_NAME)" --test
+
+# Clean and check
+clean:
+	rm -rf dist/ build/ *.egg-info/
+
+check-dist: build
+	$(UV_RUN) twine check dist/*
+
+# Release commands
+release: clean check-version
+	@echo "Building wheels with cibuildwheel..."
+	$(UV_RUN) python -m cibuildwheel --output-dir dist
+	@echo "Uploading to PyPI..."
+	$(UV_RUN) twine upload dist/*
+	@echo "Release $(VERSION) completed!"
+
+release-test: clean check-test-version
+	@echo "Building wheels with cibuildwheel..."
+	$(UV_RUN) python -m cibuildwheel --output-dir dist
+	@echo "Uploading to TestPyPI..."
+	$(UV_RUN) twine upload --repository testpypi dist/*
+	@echo "Test release $(VERSION) completed!"
+
+# Help
+help:
+	@echo "Available commands:"
+	@echo "  make deps          - Install development dependencies"
+	@echo "  make test          - Run tests"
+	@echo "  make benchmark     - Run benchmarks"
+	@echo "  make build         - Build package"
+	@echo "  make fast          - Quick build for development"
+	@echo "  make clean         - Clean build artifacts"
+	@echo "  make release       - Release to PyPI (includes version check)"
+	@echo "  make release-test  - Release to TestPyPI"
+	@echo "  make check-version - Check version against PyPI"
+	@echo "  make check-test-version - Check version against TestPyPI"
+	@echo "Current version: $(VERSION)" 

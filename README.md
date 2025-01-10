@@ -1,124 +1,211 @@
 # Power Attention
 
+A PyTorch extension implementing symmetric power transformers - a variant of linear transformers that achieves transformer-level performance while scaling linearly with sequence length. This package provides efficient CUDA kernels that make it possible to process much longer sequences compared to standard quadratic attention.
 
-# Development
+For details on the approach, see our paper: [Symmetric Power Transformers](https://manifestai.com/articles/symmetric-power-transformers/)
 
-Power Attention uses c++17 (because torch only supports at most c++17).
+## Installation
 
-## Build
-
-Power Attention uses setuptools as the build backend. It uses Torch's CUDA extension to compile the CUDA code. 
-
-To build the wheel (which consists of building the extension, packaging the python bindings, and creating the wheel), you can `pip install .`, `python -m build`, or `uv build`. In the latter case, you may have to specify the compiler, since uv will use the compiler it was built with.
-
+### From PyPI (Recommended)
+```bash
+pip install power-attention
 ```
+
+### From Source
+Requirements:
+- Python 3.11+
+- CUDA Toolkit 12.4
+- GCC/G++ with C++17 support
+- Linux (Windows/MacOS not supported)
+
+```bash
+git clone https://github.com/manifest-ai/power-attention.git
+cd power-attention
 pip install .
-# or
-pip install build && python -m build
-# or
-CC=gcc CXX=g++ uv build
 ```
 
-## Install
+All other dependencies (PyTorch, Ninja build system, etc.) will be automatically installed through pip.
 
-To install the wheel, run
-```
-pip install dist/power_attention-<version>-cp311-cp311-linux_x86_64.whl
-```
+## Usage
 
-or, equivalently,
-```
-make install
-```
-This will install the package to the active Python environment. 
+The main entry point is the `power_full` function, which implements symmetric power attention. Here's a basic example:
 
+```python
+import torch
+from power_attention import power_full
 
+# Create input tensors
+batch_size = 2
+seq_len = 1024
+num_heads = 8
+head_dim = 64
 
-# Math
+Q = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda', dtype=torch.float16)
+K = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda', dtype=torch.float16)
+V = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda', dtype=torch.float16)
 
-## Attention Form
+# Optional gating tensor (if using gated attention)
+log_G = None  # or torch.randn(batch_size, seq_len, num_heads, dtype=torch.float32, device='cuda')
 
-```
-Q: [t, d]
-K: [t, d]
-V: [t, d]
-O: [t, d]
-
-S = QK^T
-M = Causal Mask
-T = p * log(abs(S) + ε)
-Z = T + p * (G_Q @ 1^T - 1 @ G_K^T)
-P = exp(Z * M)
-Y = P @ V
-y = P @ 1
-O = Y / y[:, None]
-```
-
-Complexity
-
-```
-S = QK^T: O(t^2 * d)
-T = p * log(abs(S) + ε): O(t^2)
-Z = T + p * (G_Q @ 1^T - 1 @ G_K^T): O(t^2)
-P = exp(Z * M): O(t^2)
-Y = P @ V: O(t^2 * d)
-y = P @ 1: O(t^2)
-O = Y / y[:, None]: O(t * d)
+# Compute attention
+output = power_full(
+    Q=Q, K=K, V=V, 
+    log_G=log_G,          # Optional gating tensor
+    deg=4,                # Power attention degree (4 recommended for best performance)
+    chunk_size=128,       # Size of chunks for processing long sequences
+    deterministic=True,   # Whether to use deterministic algorithms
+    normal_space=True     # Whether to use normal space (vs log space)
+)
 ```
 
-Total: 
+### Integration with Transformer Models
 
-```
-O(2t^2d + 4t^2 + td)
-```
+The package includes a drop-in replacement for standard attention in transformer models. See `training/model.py` for a complete example of using power attention in a GPT-style model:
 
+```python
+from power_attention import power_full
 
-## Recurrent Form
-
-```
-Q: [t/c, c, d]
-K: [t/c, c, d]
-V: [t/c, c, d]
-O: [t, d]
-c: chunk size
-
-Phi_K = embed(K) # [t/c x c x D], O(t/c * c * D)
-S = Phi_K.transpose(1, 2) @ V^T  # [t/c x D x d], O(t/c * D * d * c)
-N = Phi_K.transpose(1, 2) @ 1  # [t/c x D], O(t/c * D * c)
-Phi_Q = embed(Q) # [t/c x c x D], O(t/c * c * D)
-Y_chunk = Phi_Q @ S  # [t/c x c x d], O(t/c * c * d * D)
-y_chunk = Phi_Q @ N  # [t/c x c], O(t/c * c * D)
-
-S = QK^T: O(t/c * (c)^2 * d)
-T = p * log(abs(S) + ε): O(t/c * (c)^2)
-Z = T + p * (G_Q @ 1^T - 1 @ G_K^T): O(t/c * (c)^2)
-P = exp(Z * M): O(t/c * (c)^2)
-Y_attn = P @ V: O(t/c * (c)^2 * d)
-y_attn = P @ 1: O(t/c * (c)^2)
-
-O = (Y_chunk + Y_attn) / (y_chunk + y_attn)[:, None]  # [t/c x c x d], O(t/c * c * d)
+class CausalSelfAttention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        # ... initialization code ...
+        
+    def forward(self, x):
+        # ... projection code ...
+        
+        # Use power attention instead of standard attention
+        y = power_full(
+            q, k, v, 
+            log_g,
+            deg=self.degree,
+            chunk_size=self.chunk_size
+        )
+        
+        # ... output projection ...
+        return y
 ```
 
-Total: 
+## Features
+
+- Efficient chunked algorithm for linear scaling with sequence length (O(t) cost vs O(t²) for standard attention)
+- Support for gated attention and rotary embeddings
+- CUDA kernels optimized for A100
+- FP16 and BF16 support
+- Replacement for standard attention in transformer models is possible for fine-tuning
+
+## Development
+
+### Setup
+
+For development, first install `uv`:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-O(tD + tDd + tD + tD + tDd + tD + tcd + tc + tc + tc + tcd + tc + td)
-= O(2tDd + 4tD + 2tcd + 4tc + td)
+
+Then install development dependencies:
+
+```bash
+uv sync --dev --train --benchmark
 ```
 
-## Complexity difference
+This will install all dependencies including testing, training, and benchmarking tools.
 
-```
-(2t^2d + 4t^2 + td) - (2tDd + 4tD + 2tcd + 4tc + td)
-= 2t^2d + 4t^2 + td - 2tDd - 4tD - 2tcd - 4tc - td
-= 2t^2d + 4t^2 - 2tDd - 4tD - 2tcd - 4tc
-= 2t(td - 2t - Dd - 2D - cd - 2c)
-= 2t(t(d - 2) - D(d - 2) - c(d - 2))
-= 2t(d - 2)(t - D - c)
+To run tests:
+```bash
+make test
 ```
 
-This means, when `t > D + c`, the attention form should be slower. Conversely, the attention form should be faster when `t < D + c`. Here we can define `D + c` as the cross-over point, a context size at which an efficient linear attention should switch from attention form to recurrent form. 
+To run benchmarks:
+```bash
+make benchmark
+```
 
-We want this cross-over point to be as small as possible to benefit from the reduced complexity of the linear form. We can see from the expression that the smaller `c` is, the smaller the cross-over point is. However, if `c` is too small, the number of chunks `t/c` increases, leading to higher memory consumption. 
+For faster development iterations, you can use:
+```bash
+make fast  # Builds with optimized settings for development
+```
 
+### Training Example
 
-# Benchmark
+After installing with training dependencies, you can run the training script:
+
+```bash
+# Single GPU training
+python training/train.py \
+  --batch_size=32 \
+  --attention_kernel=power \
+  --degree=4 \
+  --chunk_size=128 \
+  --out_dir=out/my_model
+
+# Multi-GPU training with DDP (example with 4 GPUs)
+torchrun --standalone --nproc_per_node=4 training/train.py \
+  --batch_size=32 \
+  --attention_kernel=power \
+  --degree=4 \
+  --chunk_size=128 \
+  --out_dir=out/my_model
+```
+
+Key training parameters:
+- `attention_kernel`: Use 'power' for symmetric power attention (default is 'sdpa' for standard attention)
+- `degree`: Power attention degree (4 recommended)
+- `chunk_size`: Size of chunks for processing long sequences
+- `disable_gating`: Set to true to disable gating mechanism
+- `log_space`: Whether to use log space computations
+
+## Contributing
+
+We welcome contributions! Here's how you can help:
+
+### Getting Started
+
+1. Fork the repository
+2. Set up your development environment following the instructions above
+3. Create a new branch for your feature/fix: `git checkout -b feature-name`
+
+### Guidelines
+
+- **Code Style**: Follow PEP 8 for Python code. For CUDA code, follow the existing style in the codebase
+- **Documentation**: Add docstrings to new functions and update README if needed
+- **Testing**: Add tests for new features and ensure all tests pass
+- **Commits**: Write clear, concise commit messages
+- **Performance**: For CUDA kernels, include benchmarks showing performance impact
+
+### Pull Request Process
+
+1. Update documentation for any new features
+2. Add or update tests as needed
+3. Ensure all tests pass: `make test`
+4. Run benchmarks if performance-critical code was changed: `make benchmark`
+5. Create a Pull Request with a clear description of changes
+6. Wait for review and address any feedback
+
+### Areas for Contribution
+
+- Performance optimizations for different GPU architectures
+- Documentation improvements
+- Bug fixes
+- Test coverage improvements
+
+For major changes, please open an issue first to discuss what you would like to change.
+
+## Citation
+
+If you use this code in your research, please cite:
+
+```bibtex
+@article{buckman2024symmetric,
+  title={Symmetric Power Transformers},
+  author={Buckman, Jacob and Gelada, Carles and Zhang, Sean},
+  publisher={Manifest AI},
+  year={2024},
+  month={8},
+  url={https://manifestai.com/articles/symmetric-power-transformers/}
+}
+```
+
+## License
+
+MIT License

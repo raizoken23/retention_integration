@@ -1,6 +1,6 @@
 [project]
 name = "power-attention"
-version = "0.9.13"
+version = "0.9.14"
 description = "Kernels for symmetric-power-based linear transformers"
 authors = [
   { name = "Sean Zhang", email = "sean@manifest.com" },
@@ -37,7 +37,7 @@ environments = [
     "sys_platform == 'linux'"
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 benchmark = [
   "matplotlib",
   "pandas"
@@ -45,19 +45,22 @@ benchmark = [
 dev = [
   "twine",
   "pytest>=8.3.4",
-  "pytest-xdist"
+  "pytest-xdist",
+  "cibuildwheel",
+  "auditwheel",
+  "wheel",
+  "build"
 ]
 train = [
-  "httpx",
-  "wandb",
   "tiktoken",
   "datasets",
+  "httpx",
   "tqdm"
 ]
 
 [tool.cibuildwheel]
 # Only build for Linux (since CUDA is required)
-build = ["cp311-manylinux*"]
+build = ["cp311-manylinux*", "cp312-manylinux*", "cp313-manylinux*"]
 skip = ["*-win*", "*-macos*"]
 archs = ["x86_64"]
 build-frontend = "build"
