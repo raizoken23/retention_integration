@@ -1,4 +1,4 @@
-## CHUNK STATE FORWARD PASS
+## UPDATE STATE FORWARD PASS
 # This is a custom op that computes the states for the symmetric power attention kernel.
 # This file contains the implementation of the forward pass as well as a fake
 # implementation for tracing and testing.
@@ -17,7 +17,7 @@ def ExpandedDim(head_size, deg):
 
 @torch.library.custom_op("power_attention::update_state_fwd", mutates_args=(), device_types='cuda')
 def update_state_fwd(K : torch.Tensor, V : torch.Tensor, deg : int) -> torch.Tensor:
-    """Compute chunk states for symmetric power attention kernel.
+    """Compute state update for symmetric power attention kernel.
     
     This operation computes the states needed for the symmetric power attention kernel.
     It processes chunks of the input sequence to compute intermediate states efficiently.

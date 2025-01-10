@@ -77,6 +77,7 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
     else:
         log_G_chunk_sum = torch.zeros(size=(b, n, h), device=Q.device, dtype=torch.float32)
     S = _discumsum(S, log_G_chunk_sum) # Note that this adds an empty chunk to the start of the sequence
+    S = S.narrow(1, 0, n)
 
     # Compute attention
     Q_flatbatch = Q.view(b*n, c, hq, d)
@@ -96,16 +97,23 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
     if gating:
         if qhead_ratio > 1:
             log_G_intrachunk_accum = log_G_intrachunk_accum.repeat_interleave(qhead_ratio, dim=3)
-        Q = Q * torch.exp(log_G_intrachunk_accum / 1).unsqueeze(-1).to(Q.dtype)
+        Q = (Q * torch.exp(log_G_intrachunk_accum / 1).unsqueeze(-1)).to(Q.dtype)
     if qhead_ratio > 1:
         S = S.repeat_interleave(qhead_ratio, dim=2)
 
-    qs_Y = (_query_state(Q, S[:,:-1]) * stabilizer / rowmax).to(dtype)
+    correction = (stabilizer / rowmax)
+    qs_Y = _query_state((Q * correction).to(dtype), S)
     return (attn_Y + qs_Y).reshape(b, t, hq, d)
 
 
 def _update_state(K, V):
-    return torch.einsum('bnchD,bnchd->bnhDd', K, V)
+    # K: [b,n,c,h,D]
+    # V: [b,n,c,h,d]
+    # Output: [b,n,h,D,d]
+    return torch.matmul(K.permute(0, 1, 3, 4, 2), V.transpose(2, 3))  # [b,n,h,D,d]
 
 def _query_state(Q, S):
-    return torch.einsum('bnchD,bnhDd->bnchd', Q, S)
+    # Q: [b,n,c,h,D]
+    # S: [b,n,h,D,d]
+    # Output: [b,n,c,h,d]
+    return torch.matmul(Q.transpose(2, 3), S).transpose(2, 3)  # [b,n,c,h,d]

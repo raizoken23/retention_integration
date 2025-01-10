@@ -12,7 +12,7 @@ from power_attention.utils import dummify
 def ExpandedDim(head_size, deg):
     return ((InnerBlock_DT // OuterBlock_DT + head_size // OuterBlock_DT) * (head_size // InnerBlock_DT) // 2) * (InnerBlock_DT * OuterBlock_DT)
 
-class SymmetricPowerChunkStateReference(torch.autograd.Function):
+class SymmetricPowerUpdateStateReference(torch.autograd.Function):
     @staticmethod
     def expand(K, deg):
         """ Reference implementation of key expansion
@@ -51,7 +51,7 @@ class SymmetricPowerChunkStateReference(torch.autograd.Function):
         b, n, c, h, d = K.shape
         K, V = K.transpose(2, 3), V.transpose(2, 3)  # [b, n, h, c, d]
 
-        phi_K = SymmetricPowerChunkStateReference.expand(K, deg)
+        phi_K = SymmetricPowerUpdateStateReference.expand(K, deg)
         phi_K_T = phi_K.transpose(-1, -2) # [b, n, h, D, c]
         S = torch.matmul(phi_K_T, V)  # [b, n, h, D, d]
         ctx.save_for_backward(K, V)
@@ -63,7 +63,7 @@ class SymmetricPowerChunkStateReference(torch.autograd.Function):
     def backward(ctx, dS):
         K, V = ctx.saved_tensors
 
-        phi_K = SymmetricPowerChunkStateReference.expand(K, ctx.deg) # [b, n, h, c, D]
+        phi_K = SymmetricPowerUpdateStateReference.expand(K, ctx.deg) # [b, n, h, c, D]
         
         dphi_K = V @ dS.transpose(-1, -2)  # [b, n, h, c, D]
         dV = (phi_K @ dS).transpose(2, 3)  # [b, n, c, h d]
@@ -90,5 +90,5 @@ class SymmetricPowerChunkStateReference(torch.autograd.Function):
         dK = dK.transpose(2, 3)
         return dK, dV, None
 
-update_state_reference = SymmetricPowerChunkStateReference.apply
-update_state_reference_fwd = dummify(SymmetricPowerChunkStateReference.forward)
+update_state_reference = SymmetricPowerUpdateStateReference.apply
+update_state_reference_fwd = dummify(SymmetricPowerUpdateStateReference.forward)

@@ -6,9 +6,9 @@ import torch
 import torch.nn.functional as F
 from torch.utils._pytree import tree_map
 from typing import Optional, Tuple
-from state_kernel._attention.fwd import ExpandedDim as compute_expanded_dim, attention_fwd
-from state_kernel._attention.bwd import attention_bwd_gatingless, attention_bwd_gating
-from state_kernel.timing_utils import report_fwd_bwd
+from power_attention._attention.fwd import ExpandedDim as compute_expanded_dim, attention_fwd
+from power_attention._attention.bwd import attention_bwd_gatingless, attention_bwd_gating
+from power_attention.timing_utils import report_fwd_bwd
 
 @torch.library.custom_op("power::attention", mutates_args=())
 def attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, log_G: Optional[torch.Tensor],

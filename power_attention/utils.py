@@ -5,13 +5,11 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial, wraps
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
 from torch.utils._pytree import tree_map
 from torch.autograd.profiler import record_function
-from state_kernel.checks import clone_grads, create_random_grads, sanity_check
+from power_attention.checks import clone_grads, create_random_grads, sanity_check
 
 DEFAULT_SEEDS = [40 + i for i in range(2)]
 class DummyCtx:
@@ -384,6 +382,7 @@ def plot_precision(ref_precisions, test_precisions, xaxis, xlabel, title, precis
     ref_precisions: dict[int, list[dict[str, float]]]
     test_precisions: dict[int, list[dict[str, float]]]
     """
+    import matplotlib.pyplot as plt
     num_args = len(ref_precisions)
     fig, axs = plt.subplots(num_args, 1, figsize=(12, 10), layout="constrained")
     if num_args == 1:
@@ -413,6 +412,7 @@ def plot_stats(ref_stats, test_stats, xaxis, xlabel, title, precision_threshold=
     ref_stats: dict[int, list[dict[str, float]]]
     test_stats: dict[int, list[dict[str, float]]]
     """
+    import matplotlib.pyplot as plt
     num_args = len(ref_stats)
     num_stats = len([k for k in ref_stats[0][0].keys() if not k.startswith('q')]) + 1
     stats_keys = [k for k in ref_stats[0][0].keys() if not k.startswith('q')]
@@ -466,6 +466,8 @@ def print_tensor(tensor, indent=0, multi_idx=None):
         indent: Number of spaces to indent (used in recursive calls)
         multi_idx: List of indices for higher dimensional tensors (used in recursive calls)
     """
+    import pandas as pd
+
     if multi_idx is None:
         multi_idx = []
     

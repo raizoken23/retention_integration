@@ -1,5 +1,5 @@
-## CHUNK STATE CUSTOM OP
-# Computes the chunk state forward pass and backward pass using CUDA.
+## UPDATE STATE CUSTOM OP
+# Computes the update state forward pass and backward pass using CUDA.
 
 ## IMPLEMENTATION ##
 import torch
@@ -17,9 +17,9 @@ from power_attention.timing_utils import report_fwd_bwd
 # Define the primary update_state entrypoint
 @torch.library.custom_op("power_attention::update_state", mutates_args=())
 def update_state(K : torch.Tensor, V : torch.Tensor, deg : int) -> torch.Tensor:
-    """Compute chunk state forward pass.
+    """Compute update state forward pass.
     
-    Computes the chunk state operation by accumulating key-value pairs into expanded state vectors.
+    Computes the update state operation by accumulating key-value pairs into expanded state vectors.
     
     Input shapes:
         K: [batch, chunk_n, chunk_size, head, dim] - Key tensor

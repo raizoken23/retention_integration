@@ -1,8 +1,6 @@
 import torch
-import pandas as pd
 from copy import deepcopy
-from torch.testing import assert_close
-import math
+
 def check_tensor(tensor, properties=None):
     """Check that a single tensor is well-behaved and optionally matches expected properties.
 
@@ -88,12 +86,13 @@ def save_to_csv(tensor, filename):
     """
     Save a tensor to a CSV file.
     """
+    import pandas as pd
     t = tensor.squeeze().detach().cpu().to(torch.float32).numpy()
     df = pd.DataFrame(t)
     df.to_csv(filename, index=False, header=False)
     print(f"Tensor saved to {filename}")
 
-def check_all_equivalent(a, b, rtol=1e-3, atol=1e-3, debug_fn_or_fns=None, ignore_nan=False):
+def check_all_equivalent(a, b, rtol=1e-3, atol=1e-3, ignore_nan=False):
     """Check if two objects or iterables of objects are equivalent.
     
     Args:
@@ -108,21 +107,42 @@ def check_all_equivalent(a, b, rtol=1e-3, atol=1e-3, debug_fn_or_fns=None, ignor
         assert a.dtype == b.dtype, f"Dtypes don't match: {a.dtype} vs {b.dtype}" 
         assert a.device == b.device, f"Devices don't match: {a.device} vs {b.device}"
         assert a.is_contiguous() == b.is_contiguous(), "Contiguity doesn't match"
-        if not torch.allclose(a, b, rtol=rtol, atol=atol):
-            if debug_fn_or_fns is not None:
-                msg = debug_fn_or_fns(a, b)
-            elif torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
-                indices = torch.argwhere(torch.isnan(a) | torch.isnan(b))
-                a_vals = [a[*indices[i].tolist()].item() for i in range(len(indices))]
-                b_vals = [b[*indices[i].tolist()].item() for i in range(len(indices))]
-                msg = f"Values don't match within tolerance with nans (but otherwise close) at {len(indices)}/{a.numel()} indices: \n {indices}\n a: {a_vals}\n b: {b_vals}"
-                if ignore_nan:
-                    return
-            else:
-                indices = torch.argwhere(torch.abs(a - b) > atol + rtol * torch.abs(b))
-                a_vals = [a[*indices[i].tolist()].item() for i in range(len(indices))]
-                b_vals = [b[*indices[i].tolist()].item() for i in range(len(indices))]
-                msg = f"Values don't match within tolerance: {torch.abs(a - b).max().item():.4f} at {len(indices)}/{a.numel()} indices: \n {indices}\n a: {a_vals}\n b: {b_vals}"
+        has_nans = (torch.isnan(a) | torch.isnan(b)).any()
+        if torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):    
+            if has_nans and not ignore_nan:
+                raise AssertionError(f"One or both inputs contain nans but otherwise match")
+        else:
+            diff = torch.abs(a - b)
+            abs_tol = atol
+            rel_tol = rtol * torch.abs(b)
+            
+            # Find failures of absolute threshold
+            abs_failures = diff > abs_tol
+            if abs_failures.any():
+                rel_error_for_abs_fails = (diff[abs_failures] / (torch.abs(b[abs_failures]) + 1e-8))
+                max_rel_error = rel_error_for_abs_fails.max().item()
+                max_rel_idx = torch.argwhere(diff / (torch.abs(b) + 1e-8) == max_rel_error)[0]
+            
+            # Find failures of relative threshold  
+            rel_failures = diff > rel_tol
+            if rel_failures.any():
+                abs_error_for_rel_fails = diff[rel_failures]
+                max_abs_error = abs_error_for_rel_fails.max().item()
+                max_abs_idx = torch.argwhere(diff == max_abs_error)[0]
+
+            msg = f"Values don't match within tolerance rtol={rtol}, atol={atol}. "
+            msg += f"Found {(abs_failures | rel_failures).sum().item()}/{a.numel()} failing indices. "
+            
+            if abs_failures.any():
+                msg += f"Maximum relative error among absolute failures: {max_rel_error} at index {tuple(max_rel_idx.tolist())} "
+                msg += f"(a={a[tuple(max_rel_idx)].item():.6f}, b={b[tuple(max_rel_idx)].item():.6f}). "
+            
+            if rel_failures.any():
+                msg += f"Maximum absolute error among relative failures: {max_abs_error} at index {tuple(max_abs_idx.tolist())} "
+                msg += f"(a={a[tuple(max_abs_idx)].item():.6f}, b={b[tuple(max_abs_idx)].item():.6f})"
+
+            if has_nans:
+                msg += f". Also, one or both inputs contain NaN values."
             raise AssertionError(msg)
         return
     elif a is None and b is None:
@@ -133,10 +153,9 @@ def check_all_equivalent(a, b, rtol=1e-3, atol=1e-3, debug_fn_or_fns=None, ignor
         
     # Handle iterables of objects
     try:
-        debug_fn_or_fns = debug_fn_or_fns or [None] * len(a)
-        for i, (a_item, b_item, debug_fn) in enumerate(zip(a, b, debug_fn_or_fns)):
+        for i, (a_item, b_item) in enumerate(zip(a, b)):
             try:
-                check_all_equivalent(a_item, b_item, rtol=rtol, atol=atol, debug_fn_or_fns=debug_fn, ignore_nan=ignore_nan)
+                check_all_equivalent(a_item, b_item, rtol=rtol, atol=atol, ignore_nan=ignore_nan)
             except AssertionError as e:
                 raise AssertionError(f"Element {i}/{len(a)} failed: {e}")
     except TypeError as e:

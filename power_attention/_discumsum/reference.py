@@ -1,5 +1,4 @@
 import torch
-from state_kernel.checks import save_to_csv
 
 def discumsum_reference(X, log_G):
     if log_G is None:

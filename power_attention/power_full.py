@@ -311,11 +311,11 @@ power_full_reference = partial(power_full, use_reference=True)
 def create_inputs(b=2, t=1024, h=8, d=32, qhead_ratio=1, dtype=torch.float16, device='cuda', gating=False,
                   chunk_size=None, deg=2, requires_grad=False, log_space=False, seed=42):
     torch.manual_seed(seed)
-    Q = torch.randn(size=(b, t, h * qhead_ratio, d), dtype=dtype, device=device)
-    K = torch.randn(size=(b, t, h, d), dtype=dtype, device=device)
-    V = torch.randn(size=(b, t, h, d), dtype=dtype, device=device)
+    Q = torch.randn(size=(b, t, h * qhead_ratio, d), dtype=dtype, device=device) / math.sqrt(d)
+    K = torch.randn(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
+    V = torch.randn(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
     if gating:
-        log_G = F.logsigmoid(6.906768 + torch.randn(size=(b, t, h), dtype=torch.float32, device=device))
+        log_G = F.logsigmoid(torch.randn(size=(b, t, h), dtype=torch.float32, device=device))
     else:
         log_G = None
     initial_state = None

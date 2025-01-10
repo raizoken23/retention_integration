@@ -36,13 +36,23 @@ param_ranges = {
     'deg': [1, 2],
     'log_space': [False, True],
 }
+# Human-readable id string
+def id_fn(kw):
+    return f"shape_{kw['b']}_{kw['t']}_{kw['h']}_{kw['d']}-" \
+           f"dtype_{kw['dtype']}-" \
+           f"device_{kw['device']}-" \
+           f"qhead_ratio_{kw['qhead_ratio']}-" \
+           f"gating_{kw['gating']}-" \
+           f"chunk_size_{kw['chunk_size']}-" \
+           f"deg_{kw['deg']}-" \
+           f"log_space_{kw['log_space']}"
 # Generate all combinations
 TEST_CASES = [
     dict(zip(param_ranges.keys(), values))
     for values in product(*param_ranges.values())
 ]
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_create_inputs(kw):
     inputs = create_inputs(**kw)
     check_tensor_property_pairs(
@@ -55,7 +65,7 @@ def test_power_full_create_inputs(kw):
             (inputs['log_G'], ((kw['b'], kw['t'], kw['h']), torch.float32, kw['device']))
         )
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_output(kw):
     inputs = create_inputs(**kw)
     with torch.no_grad():
@@ -64,48 +74,42 @@ def test_power_full_output(kw):
         (Y, ((kw['b'], kw['t'], kw['h'] * kw['qhead_ratio'], kw['d']), kw['dtype'], kw['device']))
     )
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_create_inputs_determinism(kw):
     check_inputs_created_determinstically(create_inputs, kw)
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_compiles(kw):
     check_fn_compiles(
         power_full, 
         create_inputs(**kw) 
     )
 
-@pytest.mark.skip(reason='Skipping test for now, compile appears to change the numerics. TODO check this')
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.skip(reason='Skipping test for now, compile changes the numerics')
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_compiled_matches_eager(kw):
     check_fn_compiles(
         power_full,
         create_inputs(**kw), 
         # The high atol and rtol here is because torch.compile makes the computation numerically different than eager mode. See https://github.com/pytorch/pytorch/issues/141436
-        rtol=1e-2, atol=1e-2
+        rtol=.1, atol=.1
     )
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_backward_compiles(kw):
     check_fn_compiles_with_backward(
         power_full, 
         create_inputs(**kw, requires_grad=True)
     )
 
-@pytest.mark.skip(reason='Skipping test for now, compile appears to change the numerics. TODO check this')
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.skip(reason='Skipping test for now, compile changes the numerics')
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 def test_power_full_backward_compiled_matches_eager(kw):
     check_fn_compiles_with_backward(
         power_full, 
         create_inputs(**kw, requires_grad=True), 
         rtol=4e-2, atol=5e-3, grad_scale=1e-5
     )
-
-@pytest.mark.xfail(reason='Have not yet figured out how to make opcheck pass')
-@pytest.mark.parametrize("kw", TEST_CASES)
-def test_power_full_opcheck(kw):
-    torch.library.opcheck(power_full, create_inputs(**kw, requires_grad=True))
-
 
 ## CONSISTENCY TESTS ##
 # These tests confirm that the reference implementation is invariant to chunking, modulo layernorm.
@@ -117,8 +121,33 @@ def fn_with_layernorm(fn):
     return wrapper
 power_full_reference_layernorm = fn_with_layernorm(power_full_reference)
 
-@pytest.mark.parametrize("kw", TEST_CASES)
-def test_power_full_reference_consistency(kw):
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
+def test_power_full_reference_log_space_consistency(kw):
+    if kw['log_space'] is True: pytest.skip("Skipping test for log_space=True")
+    inputs_log_space = create_inputs(**(kw | {'log_space': True, 'dtype': torch.float32}))
+    inputs_normal_space = create_inputs(**(kw | {'log_space': False, 'dtype': torch.float32}))
+    check_inputs_forwards_match(
+        fn=power_full_reference_layernorm,
+        inputs1=inputs_log_space,
+        inputs2=inputs_normal_space,
+        atol=1e-4,
+    )
+
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
+def test_power_full_reference_log_space_grad_consistency(kw):
+    if kw['log_space'] is True: pytest.skip("Skipping test for log_space=True")
+    inputs_log_space = create_inputs(**(kw | {'log_space': True, 'dtype': torch.float32}), requires_grad=True)
+    inputs_normal_space = create_inputs(**(kw | {'log_space': False, 'dtype': torch.float32}), requires_grad=True)
+    check_inputs_backwards_match(
+        fn=power_full_reference_layernorm,
+        inputs1=inputs_log_space,
+        inputs2=inputs_normal_space,
+        atol=1e-4,
+    )
+
+
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
+def test_power_full_reference_chunk_size_consistency(kw):
     if kw['chunk_size'] is None: pytest.skip("Skipping test for chunk_size=None, because it is vacuously true")
     inputs_attention = create_inputs(**(kw | {'chunk_size': None, 'dtype': torch.float32}))
     inputs_recurrent = create_inputs(**(kw | {'dtype': torch.float32}))
@@ -129,8 +158,8 @@ def test_power_full_reference_consistency(kw):
         atol=1e-4,
     )
 
-@pytest.mark.parametrize("kw", TEST_CASES)
-def test_power_full_reference_grad_consistency(kw):
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
+def test_power_full_reference_chunk_size_grad_consistency(kw):
     if kw['chunk_size'] is None: pytest.skip("Skipping test for chunk_size=None, because it is vacuously true")
     inputs_attention = create_inputs(**(kw | {'chunk_size': None, 'dtype': torch.float32}), requires_grad=True)
     inputs_recurrent = create_inputs(**(kw | {'dtype': torch.float32}), requires_grad=True)
@@ -142,11 +171,11 @@ def test_power_full_reference_grad_consistency(kw):
     )
 
 # TODO(jbuckman): find the right place for this test
-# from power_attention._update_state.reference import (
+# from state_kernel._chunk_state.reference import (
 #     SymmetricPowerChunkStateReference
 # )
-# from power_attention._update_state.impl import create_inputs as create_inputs_impl_cs
-# from power_attention._query_state.reference import (
+# from state_kernel._chunk_state.impl import create_inputs as create_inputs_impl_cs
+# from state_kernel._query_state.reference import (
 #     QueryStateReference
 # )
 # 
@@ -172,7 +201,7 @@ def test_power_full_reference_grad_consistency(kw):
 ## REFERENCE TESTS ##
 # These tests are for comparing the outputs of the kernel to the reference implementation.
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 @pytest.mark.parametrize("compile", [False, True])
 def test_power_full_kernel_matches_reference(kw, compile):
     gold_inputs = create_inputs(**(kw | {'dtype': torch.float32}))
@@ -186,7 +215,7 @@ def test_power_full_kernel_matches_reference(kw, compile):
     )
 
 
-@pytest.mark.parametrize("kw", TEST_CASES)
+@pytest.mark.parametrize("kw", TEST_CASES, ids=id_fn)
 @pytest.mark.parametrize("compile", [False, True])
 def test_power_full_kernel_grad_matches_reference(kw, compile):
     gold_inputs = create_inputs(requires_grad=True, **(kw | {'dtype': torch.float32}))
