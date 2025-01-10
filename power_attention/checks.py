@@ -521,11 +521,11 @@ def check_inputs_created_determinstically(create_inputs, kwargs, debug_fn=None):
 
 def check_fn_compiles(fn, inputs, rtol=None, atol=None):
     with torch.no_grad():
-        output_or_outputs = fn(**inputs)    
+        output_or_outputs = fn(*inputs.values())    
     compiled_fn = torch.compile(fn)
     with torch.no_grad():
         for _ in range(3):
-            output_or_outputs_from_compiled = compiled_fn(**inputs)
+            output_or_outputs_from_compiled = compiled_fn(*inputs.values()) # TODO(jbuckman): horrible hack to get torch.compile to work
     if rtol is not None or atol is not None:
         check_all_equivalent(output_or_outputs, output_or_outputs_from_compiled, rtol=rtol, atol=atol)
     torch._dynamo.reset()

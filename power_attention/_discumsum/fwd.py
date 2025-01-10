@@ -49,7 +49,10 @@ def create_inputs(b=2, n=4, h=8, d=16, X_dtype=torch.float16, device='cuda'):
     generator = torch.Generator(device=device).manual_seed(42)
     X = torch.randn(size=(b, n, h, d), dtype=X_dtype, device=device, generator=generator)
     log_G = torch.zeros(size=(b, n, h), dtype=torch.float32, device=device) - .01
-    return X, log_G
+    return dict(
+        X=X,
+        log_G=log_G
+    )
 
 
 ## TUTORIAL ##

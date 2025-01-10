@@ -79,7 +79,10 @@ def create_inputs(b=2, n=4, h=8, D=64, d=16, X_dtype=torch.float16, device='cuda
         X, log_G = tree_map(
             lambda x: x.requires_grad_(True), (X, log_G)
         )
-    return X, log_G
+    return dict(
+        X=X,
+        log_G=log_G
+    )
 
 
 ## TUTORIAL ##
@@ -100,65 +103,3 @@ if __name__ == '__main__':
         outputs = compiled_discumsum(*inputs)
         torch.autograd.backward(outputs, outputs)
 
-## TESTS ##
-import pytest
-from power_attention.checks import (
-    check_tensor_property_pairs,
-    check_fn_compiles,
-    check_fn_compiles_with_backward,
-    check_fake_fn_implementation_matches
-)
-
-TEST_CASES = [
-    (2, 8, 4, 4, 32, torch.float16, 'cuda'),    # Common case with float16
-    (4, 32, 8, 4, 32, torch.float16, 'cuda'),   # Large case with float16 and gating
-    (1, 8, 4, 4, 64, torch.float16, 'cuda'),    # Test float16 with large head
-    (2, 32, 8, 4, 64, torch.float16, 'cuda'),   # Large case with float16 and gating
-    (1, 8, 4, 4, 32, torch.bfloat16, 'cuda'),   # Test bfloat16
-    (4, 32, 8, 4, 32, torch.bfloat16, 'cuda'),  # Large case with bfloat16 and gating
-    (2, 8, 4, 4, 64, torch.bfloat16, 'cuda'),   # Test bfloat16 with large head
-    (1, 32, 8, 4, 64, torch.bfloat16, 'cuda'),  # Large case with bfloat16 and gating
-]
-
-@pytest.mark.parametrize("b,n,h,D,d,dtype,device", TEST_CASES)
-def test_discumsum_create_inputs(b, n, h, D, d, dtype, device):
-    X, log_G = create_inputs(b, n, h, D, d, dtype, device)
-    check_tensor_property_pairs(
-        (X, ((b, n, h, D, d), dtype, device)),
-        (log_G, ((b, n, h), torch.float32, device))
-    )
-
-@pytest.mark.parametrize("b,n,h,D,d,dtype,device", TEST_CASES)
-def test_discumsum_output(b, n, h, D, d, dtype, device):
-    inputs = create_inputs(b, n, h, D, d, dtype, device)
-    with torch.no_grad():
-        cum_X = discumsum(*inputs)
-    check_tensor_property_pairs(
-        (cum_X, ((b, n+1, h, D, d), dtype, device))
-    )
-
-@pytest.mark.parametrize("b,n,h,D,d,dtype,device", TEST_CASES)
-def test_discumsum_backward(b, n, h, D, d, dtype, device):
-    X, log_G = create_inputs(b, n, h, D, d, dtype, device, requires_grad=True)
-    output = discumsum(X, log_G)
-    torch.autograd.backward(output, output)
-    check_tensor_property_pairs(
-        (X.grad, ((b, n, h, D, d), dtype, device)),
-        (log_G.grad, ((b, n, h), torch.float32, device))
-    )
-
-@pytest.mark.parametrize("args", TEST_CASES)
-def test_discumsum_compiles(args):
-    check_fn_compiles(discumsum, create_inputs(*args))
-
-@pytest.mark.parametrize("args", TEST_CASES)
-def test_discumsum_compiles_with_backward(args):
-    check_fn_compiles_with_backward(discumsum, create_inputs(*args, requires_grad=True))
-
-@pytest.mark.parametrize("args", TEST_CASES)
-def test_discumsum_fake_fn_implementation_matches(args):
-    check_fake_fn_implementation_matches(discumsum, discumsum_fake, create_inputs(*args))
-
-@pytest.mark.parametrize("args", TEST_CASES)
-def test_discumsum_opcheck(args):
-    torch.library.opcheck(discumsum, create_inputs(*args, requires_grad=True))

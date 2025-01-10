@@ -45,7 +45,11 @@ def create_inputs(b=2, n=4, h=8, d=16, X_dtype=torch.float16, device='cuda'):
     dout = torch.randn(size=(b, n1, h, d), dtype=X_dtype, device=device, generator=generator) / d**.25
     out = torch.randn(size=(b, n1, h, d), dtype=X_dtype, device=device, generator=generator) / d**.25
     log_G = torch.zeros(size=(b, n, h), dtype=torch.float32, device=device) - .01
-    return dout, out, log_G
+    return dict(
+        dout=dout,
+        out=out,
+        log_G=log_G
+    )
 
 
 ## TUTORIAL ##
@@ -54,12 +58,12 @@ if __name__ == '__main__':
     b, n, h, d = (2, 4, 8, 16)
     dtype = torch.float16
     # Create inputs
-    dout, out, log_G = create_inputs(b, n, h, d, dtype, 'cuda')
+    inputs = create_inputs(b, n, h, d, dtype, 'cuda')
     # Run function
     with torch.no_grad():
-        dX, dlog_G = discumsum_bwd(dout, out, log_G)
+        dX, dlog_G = discumsum_bwd(**inputs)
     # Compile function, fullgraph=True confirms no graph breaks
     compiled_discumsum_bwd = torch.compile(discumsum_bwd, fullgraph=True)
     with torch.no_grad():
         for _ in range(3):
-            dX, dlog_G = compiled_discumsum_bwd(dout, out, log_G)
+            dX, dlog_G = compiled_discumsum_bwd(*inputs.values())
