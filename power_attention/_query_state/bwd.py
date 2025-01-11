@@ -54,7 +54,7 @@ def query_state_bwd_fake(Q, S, dO, rowmax, deg, stabilizer, zero_initial_state, 
     _, _, _, D, _ = S.shape
     return (torch.empty_like(Q), 
             torch.empty_like(S), 
-            torch.empty_like(dO))
+            torch.empty_like(dO) if rowmax is not None else torch.empty([0], device=dO.device, dtype=dO.dtype))
 
 # Useful function to create sample inputs
 def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, device='cuda', seed=42, deterministic=True, fused=False, zero_initial_state=False, stabilizer=None):
@@ -67,7 +67,7 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, device='cuda'
     rowmax = torch.randn(size=(b, n, c, h), dtype=torch.float32, device=device) if fused else None
     if zero_initial_state:
         S[:, 0] = 0
-    return Q, S, dO, rowmax, deg, stabilizer, zero_initial_state, deterministic
+    return dict(Q=Q, S=S, dO=dO, rowmax=rowmax, deg=deg, stabilizer=stabilizer, zero_initial_state=zero_initial_state, deterministic=deterministic)
 
 ## TUTORIAL ##
 if __name__ == '__main__':

@@ -78,11 +78,11 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, 
     torch.manual_seed(seed)
     deg = 2
     D = compute_expanded_dim(d, deg)
-    Q = torch.ones(size=(b, n, c, h, d), dtype=dtype, device=device) * q_std
-    S = torch.ones(size=(b, n, h, D, d), dtype=dtype, device=device) * S_std
+    Q = torch.randn(size=(b, n, c, h, d), dtype=dtype, device=device) * q_std / d**.25
+    S = torch.randn(size=(b, n, h, D, d), dtype=dtype, device=device) * S_std / d**.25
     if fused:
-        Y = torch.ones(size=(b, n, c, h, d), dtype=dtype, device=device) * Y_std
-        rowmax = F.logsigmoid(6.9 + torch.ones(size=(b, n, c, h), dtype=torch.float32, device=device) * rowmax_std)
+        Y = torch.randn(size=(b, n, c, h, d), dtype=dtype, device=device) * Y_std / d**.25
+        rowmax = F.logsigmoid(torch.randn(size=(b, n, c, h), dtype=torch.float32, device=device) * rowmax_std)
     else:
         Y = None
         rowmax = None
@@ -92,7 +92,7 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, 
     if requires_grad:
         Q, S, Y = tree_map(
             lambda x: x.requires_grad_(True) if x is not None else None, (Q, S, Y))
-    return Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps, deterministic
+    return dict(Q=Q, S=S, Y=Y, rowmax=rowmax, deg=deg, stabilizer=stabilizer, zero_initial_state=zero_initial_state, eps=eps, deterministic=deterministic)
 
 ## TUTORIAL ##
 if __name__ == '__main__':

@@ -70,12 +70,12 @@ class QueryStateReference(torch.autograd.Function):
         return dY_attn, dY_qs
 
     @staticmethod
-    def forward(ctx, Q, S, att_Y, rowmax, deg, stabilizer, zero_initial_state, eps, deterministic):
+    def forward(ctx, Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps, deterministic):
         """Compute query state output
         args:
             Q: [b, n, c, h, d]
             S: [b, n, h, D, d]
-            att_Y: [b, n, c, h, d] or None
+            Y: [b, n, c, h, d] or None
             rowmax: [b, n, c, h] or None
             deg: int
             stabilizer: float or None
@@ -89,6 +89,7 @@ class QueryStateReference(torch.autograd.Function):
         _, _, _, _, D = S.shape
         if isinstance(stabilizer, float):
             stabilizer = torch.tensor(stabilizer, dtype=torch.float32, device=Q.device)
+        att_Y = Y
 
         Q = rearrange(Q, 'b n c h d -> b n h c d')
         
@@ -163,5 +164,11 @@ class QueryStateReference(torch.autograd.Function):
         dQ = dQ.transpose(2, 3)
         return dQ, dS, dY_attn, None, None, None, None, None, None
 
-query_state_reference = QueryStateReference.apply
+def query_state_reference(*args, **kwargs):
+    if args and kwargs:
+        raise ValueError("Cannot pass both args and kwargs")
+    if kwargs:
+        args = (kwargs['Q'], kwargs['S'], kwargs['Y'], kwargs['rowmax'], kwargs['deg'], 
+                kwargs['stabilizer'], kwargs['zero_initial_state'], kwargs['eps'], kwargs['deterministic'])
+    return QueryStateReference.apply(*args)
 query_state_reference_fwd = dummify(QueryStateReference.forward)

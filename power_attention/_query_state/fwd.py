@@ -71,7 +71,16 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, 
     if zero_initial_state:
         S[:, 0] = 0
     eps = 1e-6
-    return Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps
+    return dict(
+        Q=Q, 
+        S=S, 
+        Y=Y, 
+        rowmax=rowmax, 
+        deg=deg, 
+        stabilizer=stabilizer, 
+        zero_initial_state=zero_initial_state, 
+        eps=eps
+    )
 
 ## TUTORIAL ##
 if __name__ == '__main__':
@@ -80,10 +89,10 @@ if __name__ == '__main__':
     dtype = torch.float16
     stabilizer = 1.0
     # Create inputs
-    inputs = Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps = create_inputs(b, n, c, h, d, dtype, 'cuda', stabilizer=stabilizer)
+    inputs = create_inputs(b, n, c, h, d, dtype, 'cuda', stabilizer=stabilizer)
     # Run function
     with torch.no_grad():
-        O = query_state_fwd(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps)
+        O = query_state_fwd(**inputs)
     # Compile function, fullgraph=True confirms no graph breaks
     compiled_query_state_fwd = torch.compile(query_state_fwd, fullgraph=True)
     with torch.no_grad():

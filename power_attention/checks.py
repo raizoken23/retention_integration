@@ -654,5 +654,4 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
     ref_err = check_max_diff(gold_grads, ref_grads)
     test_err = check_max_diff(gold_grads, test_grads)
     check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
-
-
+    torch.cuda.empty_cache()
