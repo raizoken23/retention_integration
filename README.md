@@ -45,16 +45,14 @@ K = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda', dtype=t
 V = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda', dtype=torch.float16)
 
 # Optional gating tensor (if using gated attention)
-log_G = None  # or torch.randn(batch_size, seq_len, num_heads, dtype=torch.float32, device='cuda')
+log_G = None  # or torch.nn.functional.logsigmoid(torch.randn(batch_size, seq_len, num_heads, dtype=torch.float32, device='cuda'))
 
 # Compute attention
 output = power_full(
     Q=Q, K=K, V=V, 
     log_G=log_G,          # Optional gating tensor
-    deg=4,                # Power attention degree (4 recommended for best performance)
+    deg=2,                # Power attention degree
     chunk_size=128,       # Size of chunks for processing long sequences
-    deterministic=True,   # Whether to use deterministic algorithms
-    normal_space=True     # Whether to use normal space (vs log space)
 )
 ```
 
@@ -106,7 +104,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Then install development dependencies:
 
 ```bash
-uv sync --dev --train --benchmark
+uv sync --group dev --group train --group benchmark
 ```
 
 This will install all dependencies including testing, training, and benchmarking tools.
@@ -135,7 +133,7 @@ After installing with training dependencies, you can run the training script:
 python training/train.py \
   --batch_size=32 \
   --attention_kernel=power \
-  --degree=4 \
+  --degree=2 \
   --chunk_size=128 \
   --out_dir=out/my_model
 
@@ -143,14 +141,14 @@ python training/train.py \
 torchrun --standalone --nproc_per_node=4 training/train.py \
   --batch_size=32 \
   --attention_kernel=power \
-  --degree=4 \
+  --degree=2 \
   --chunk_size=128 \
   --out_dir=out/my_model
 ```
 
 Key training parameters:
 - `attention_kernel`: Use 'power' for symmetric power attention (default is 'sdpa' for standard attention)
-- `degree`: Power attention degree (4 recommended)
+- `degree`: Power attention degree
 - `chunk_size`: Size of chunks for processing long sequences
 - `disable_gating`: Set to true to disable gating mechanism
 - `log_space`: Whether to use log space computations
