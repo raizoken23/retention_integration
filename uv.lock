@@ -1125,12 +1125,14 @@ wheels = [
 
 [[package]]
 name = "power-attention"
-version = "0.9.13"
+version = "0.9.14"
 source = { editable = "." }
 dependencies = [
     { name = "einops", marker = "sys_platform == 'linux'" },
     { name = "numpy", marker = "sys_platform == 'linux'" },
+    { name = "setuptools", marker = "sys_platform == 'linux'" },
     { name = "torch", marker = "sys_platform == 'linux'" },
+    { name = "triton", marker = "sys_platform == 'linux'" },
 ]
 
 [package.dev-dependencies]
@@ -1158,7 +1160,9 @@ train = [
 requires-dist = [
     { name = "einops" },
     { name = "numpy", specifier = ">=2.2" },
+    { name = "setuptools" },
     { name = "torch", specifier = ">=2.5" },
+    { name = "triton", specifier = ">=3.1" },
 ]
 
 [package.metadata.requires-dev]

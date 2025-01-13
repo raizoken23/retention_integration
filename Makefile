@@ -7,6 +7,9 @@ PACKAGE_NAME := power-attention
 
 all: build test
 
+dev:
+	CC=gcc CXX=g++ uv sync
+
 deps:
 	uv sync --no-install-project --group dev --group train
 
@@ -35,7 +38,7 @@ check-test-version:
 
 # Clean and check
 clean:
-	rm -rf dist/ build/ *.egg-info/
+	rm -rf dist/ build/ *.egg-info/ *.so wheelhouse/
 
 check-dist: build
 	$(UV_RUN) twine check dist/*
