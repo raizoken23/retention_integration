@@ -13,7 +13,7 @@ pip install power-attention
 
 ### From Source
 Requirements:
-- Python 3.11+
+- Python 3.11 or 3.12 (3.13 depends on the upcoming [Triton 3.2 release](https://github.com/triton-lang/triton/issues/5215))
 - CUDA Toolkit 12.4
 - GCC/G++ with C++17 support
 - Linux (Windows/MacOS not supported)
