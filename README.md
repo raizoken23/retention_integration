@@ -95,38 +95,53 @@ class CausalSelfAttention(nn.Module):
 
 ### Setup
 
-For development, first install `uv`:
+The project uses a Makefile to manage development tasks. First, set up a virtual environment and install dependencies:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install base dependencies
+make deps
+
+# For development (includes testing tools)
+make deps-dev
+
+# For benchmarking
+make deps-benchmark
+
+# For training
+make deps-train
 ```
 
-Then install development dependencies:
+By default, the virtual environment is created in `.venv`. You can override this location by setting the `POWER_ATTENTION_VENV_PATH` environment variable:
 
 ```bash
-uv sync --group dev --group train --group benchmark
+POWER_ATTENTION_VENV_PATH=~/.virtualenvs/power-attention make deps-dev
 ```
 
-This will install all dependencies including testing, training, and benchmarking tools.
+### Common Tasks
 
-To run tests:
+Run tests:
 ```bash
 make test
 ```
 
-To run benchmarks:
+Run benchmarks:
 ```bash
 make benchmark
 ```
 
-For faster development iterations, you can use:
+For faster development iterations:
 ```bash
 make fast  # Builds with optimized settings for development
 ```
 
+For a full list of available commands:
+```bash
+make help
+```
+
 ### Training Example
 
-After installing with training dependencies, you can run the training script:
+After installing training dependencies (`make deps-train`), you can run the training script:
 
 ```bash
 # Single GPU training
@@ -135,6 +150,8 @@ python training/train.py \
   --attention_kernel=power \
   --degree=2 \
   --chunk_size=128 \
+  --disable_gating=False \
+  --log_space=True \
   --out_dir=out/my_model
 
 # Multi-GPU training with DDP (example with 4 GPUs)
@@ -143,15 +160,33 @@ torchrun --standalone --nproc_per_node=4 training/train.py \
   --attention_kernel=power \
   --degree=2 \
   --chunk_size=128 \
+  --disable_gating=False \
+  --log_space=True \
   --out_dir=out/my_model
 ```
 
 Key training parameters:
 - `attention_kernel`: Use 'power' for symmetric power attention (default is 'sdpa' for standard attention)
-- `degree`: Power attention degree
-- `chunk_size`: Size of chunks for processing long sequences
-- `disable_gating`: Set to true to disable gating mechanism
-- `log_space`: Whether to use log space computations
+- `degree`: Power attention degree (default: 1)
+- `chunk_size`: Size of chunks for processing long sequences (default: None)
+- `disable_gating`: Set to true to disable gating mechanism (default: False)
+- `log_space`: Whether to use log space computations (default: True)
+- `batch_size`: Batch size per GPU (default: 12)
+- `block_size`: Sequence length (default: 1024)
+- `out_dir`: Output directory for checkpoints and logs (default: 'out')
+- `compile`: Whether to use PyTorch 2.0 compilation for speed (default: True)
+- `dtype`: Data type for training - 'float32', 'bfloat16', or 'float16' (default: 'bfloat16' if supported, else 'float16')
+
+For distributed training across multiple nodes:
+```bash
+# On the first (master) node with IP 123.456.123.456:
+torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py
+
+# On the worker node:
+torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
+```
+
+Note: If your cluster does not have Infiniband interconnect, prepend `NCCL_IB_DISABLE=1` to the commands.
 
 ## Contributing
 
@@ -160,7 +195,7 @@ We welcome contributions! Here's how you can help:
 ### Getting Started
 
 1. Fork the repository
-2. Set up your development environment following the instructions above
+2. Set up your development environment: `make deps-dev`
 3. Create a new branch for your feature/fix: `git checkout -b feature-name`
 
 ### Guidelines

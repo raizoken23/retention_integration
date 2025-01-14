@@ -1,6 +1,6 @@
 [project]
 name = "power-attention"
-version = "0.9.14"
+version = "0.9.15"
 description = "Kernels for symmetric-power-based linear transformers"
 authors = [
   { name = "Sean Zhang", email = "sean@manifest.com" },
@@ -34,11 +34,6 @@ requires = [
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
-
-[tool.uv]
-environments = [
-    "sys_platform == 'linux'"
-]
 
 [dependency-groups]
 benchmark = [

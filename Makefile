@@ -1,67 +1,85 @@
 # Get version from pyproject.toml
-UV_RUN := uv run --no-project
-VERSION := $(shell $(UV_RUN) python scripts/get_version.py)
+VERSION := $(shell python scripts/get_version.py)
 PACKAGE_NAME := power-attention
+PYTHON := python3
 
-.PHONY: all build test benchmark release release-test clean check-version
+# Allow overriding venv path through environment variable, default to .venv
+VENV_DIR ?= $(if $(POWER_ATTENTION_VENV_PATH),$(POWER_ATTENTION_VENV_PATH),.venv)
+PIP := $(VENV_DIR)/bin/pip
+PYTEST := $(VENV_DIR)/bin/pytest
+
+.PHONY: all build test benchmark release release-test clean check-version venv deps deps-dev deps-benchmark deps-train
 
 all: build test
 
-dev:
-	CC=gcc CXX=g++ uv sync
+dev: venv
+	CC=gcc CXX=g++ $(PIP) install -e .
 
-deps:
-	uv sync --no-install-project --group dev --group train
+venv:
+	$(PYTHON) -m venv $(VENV_DIR)
+	$(PIP) install --upgrade pip
+
+deps: venv
+	$(PIP) install -r requirements.txt
+
+deps-dev: deps
+	$(PIP) install -r requirements-dev.txt
+
+deps-benchmark: deps
+	$(PIP) install -r requirements-benchmark.txt
+
+deps-train: deps
+	$(PIP) install -r requirements-train.txt
 
 # Development commands
-test:
-	$(UV_RUN) pytest power_attention/tests.py -v
+test: deps-dev
+	$(PYTEST) power_attention/tests.py -v
 
-benchmark:
-	$(UV_RUN) python test/benchmark.py
-
-# Build commands
-build:
-	CC=gcc CXX=g++ $(UV_RUN) python -m build
-
-fast:
-	CC=gcc CXX=g++ FAST_BUILD=1 $(UV_RUN) python -m build
+benchmark: deps-benchmark
+	$(VENV_DIR)/bin/python test/benchmark.py
 
 # Version checking
 check-version:
 	@echo "Local version: $(VERSION)"
-	@$(UV_RUN) python scripts/version_check.py "$(VERSION)" "$(PACKAGE_NAME)"
+	@$(VENV_DIR)/bin/python scripts/version_check.py "$(VERSION)" "$(PACKAGE_NAME)"
 
 check-test-version:
 	@echo "Local version: $(VERSION)"
-	@$(UV_RUN) python scripts/version_check.py "$(VERSION)" "$(PACKAGE_NAME)" --test
+	@$(VENV_DIR)/bin/python scripts/version_check.py "$(VERSION)" "$(PACKAGE_NAME)" --test
 
 # Clean and check
 clean:
 	rm -rf dist/ build/ *.egg-info/ *.so wheelhouse/
 
-check-dist: build
-	$(UV_RUN) twine check dist/*
-
 # Release commands
-release: clean check-version
+release: clean deps-dev check-version
 	@echo "Building wheels with cibuildwheel..."
-	$(UV_RUN) python -m cibuildwheel --output-dir dist
+	$(VENV_DIR)/bin/python -m cibuildwheel --output-dir dist
+	$(VENV_DIR)/bin/twine check dist/*
 	@echo "Uploading to PyPI..."
-	$(UV_RUN) twine upload dist/*
+	$(VENV_DIR)/bin/twine upload dist/*
 	@echo "Release $(VERSION) completed!"
 
-release-test: clean check-test-version
+release-test: clean deps-dev check-test-version
 	@echo "Building wheels with cibuildwheel..."
-	$(UV_RUN) python -m cibuildwheel --output-dir dist
+	$(VENV_DIR)/bin/python -m cibuildwheel --output-dir dist
+	$(VENV_DIR)/bin/twine check dist/*
 	@echo "Uploading to TestPyPI..."
-	$(UV_RUN) twine upload --repository testpypi dist/*
+	$(VENV_DIR)/bin/twine upload --repository testpypi dist/*
 	@echo "Test release $(VERSION) completed!"
 
 # Help
 help:
 	@echo "Available commands:"
-	@echo "  make deps          - Install development dependencies"
+	@echo "Environment variables:"
+	@echo "  POWER_ATTENTION_VENV_PATH - Override default virtualenv location (.venv)"
+	@echo ""
+	@echo "Commands:"
+	@echo "  make venv          - Create virtual environment"
+	@echo "  make deps          - Install base dependencies"
+	@echo "  make deps-dev      - Install development dependencies"
+	@echo "  make deps-benchmark - Install benchmark dependencies"
+	@echo "  make deps-train    - Install training dependencies"
 	@echo "  make test          - Run tests"
 	@echo "  make benchmark     - Run benchmarks"
 	@echo "  make build         - Build package"
