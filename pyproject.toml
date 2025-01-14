@@ -58,7 +58,7 @@ train = [
 
 [tool.cibuildwheel]
 # Only build for Linux (since CUDA is required)
-build = ["cp311-manylinux*", "cp312-manylinux*", "cp313-manylinux*"]
+build = ["cp311-manylinux*", "cp312-manylinux*"]
 skip = ["*-win*", "*-macos*"]
 archs = ["x86_64"]
 build-frontend = "build"
