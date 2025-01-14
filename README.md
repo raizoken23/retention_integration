@@ -119,7 +119,10 @@ POWER_ATTENTION_VENV_PATH=~/.virtualenvs/power-attention make deps-dev
 
 ### Common Tasks
 
-Run tests:
+Before running any code that depends on the package, you need to build & install the package.
+The command `make dev` will build & install the package in the venv.
+
+Run unit tests (takes about 16 min on an RTX A6000):
 ```bash
 make test
 ```
@@ -127,11 +130,6 @@ make test
 Run benchmarks:
 ```bash
 make benchmark
-```
-
-For faster development iterations:
-```bash
-make fast  # Builds with optimized settings for development
 ```
 
 For a full list of available commands:
@@ -223,6 +221,13 @@ We welcome contributions! Here's how you can help:
 - Test coverage improvements
 
 For major changes, please open an issue first to discuss what you would like to change.
+
+## Release Process
+
+1. Update the version in `pyproject.toml`
+2. Run `make dev` && `make test`, as well as benchmarks if applicable
+3. Run `make release-test` to build & push to Test PyPI for all Python targets
+4. Run `make release` to build & push to PyPI for all Python targets
 
 ## Citation
 

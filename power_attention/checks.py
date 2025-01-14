@@ -552,7 +552,7 @@ def check_fake_fn_implementation_matches(fn, fake_fn, inputs):
     check_tensors_properties(real_output, fake_output)
 
 
-def check_inputs_forwards_match(*, fn, inputs1, inputs2, atol=1e-5):
+def check_inputs_forwards_match(*, fn, inputs1, inputs2, atol=1e-5, verbose=False):
     """Given a function, check that it produces the same output for two sets of inputs.
     
     Args:
@@ -566,6 +566,19 @@ def check_inputs_forwards_match(*, fn, inputs1, inputs2, atol=1e-5):
         output2 = fn(**inputs2)
     sanity_check(output1)
     sanity_check(output2)
+
+    if verbose:
+        def find_first_mismatch(a, b, atol):
+            if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
+                diff = torch.abs(a - b)
+                if (diff > atol).any():
+                    idx = (diff > atol).nonzero()[0]
+                    print(f"First mismatch at index {tuple(idx.tolist())}: {a[tuple(idx)].item():.6f} vs {b[tuple(idx)].item():.6f}")
+            elif isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+                for a_item, b_item in zip(a, b):
+                    find_first_mismatch(a_item, b_item, atol)
+        find_first_mismatch(output1, output2, atol)
+
     err = check_max_diff(output1, output2)
     check_error_within_tolerance(err, atol=atol)
 
