@@ -244,12 +244,14 @@ class GPT(nn.Module):
             # if we are given some desired targets also calculate the loss
             logits = self.lm_head(x)
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            tail_idx = int(self.config.block_size*.1)
+            tail_loss = F.cross_entropy(logits[:, -tail_idx:, :].reshape(-1, logits.size(-1)), targets[:, -tail_idx:].reshape(-1), ignore_index=-1)
         else:
             # inference-time mini-optimization: only forward the lm_head on the very last position
             logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
-            loss = None
+            loss = tail_loss = None
 
-        return logits, loss
+        return logits, loss, tail_loss
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
