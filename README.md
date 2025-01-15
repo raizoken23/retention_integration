@@ -95,55 +95,47 @@ class CausalSelfAttention(nn.Module):
 
 ### Setup
 
-The project uses a Makefile to manage development tasks. First, set up a virtual environment and install dependencies:
+To install the development dependencies, use:
 
 ```bash
-# Install base dependencies
-make deps
-
-# For development (includes testing tools)
-make deps-dev
-
-# For benchmarking
-make deps-benchmark
-
-# For training
-make deps-train
+pip install -r requirements.txt
 ```
 
-By default, the virtual environment is created in `.venv`. You can override this location by setting the `POWER_ATTENTION_VENV_PATH` environment variable:
+This command makes the power-attention library installed in editable mode, meaning changes to the Python
+part of the library will be immediately reflected. However, after making changes to the C++ code, a
+recompilation is required:
 
 ```bash
-POWER_ATTENTION_VENV_PATH=~/.virtualenvs/power-attention make deps-dev
+make dev
 ```
 
-### Common Tasks
+### Testing & Benchmarking
 
-Before running any code that depends on the package, you need to build & install the package.
-The command `make dev` will build & install the package in the venv.
+Run correctness tests with
 
-Run unit tests (takes about 16 min on an RTX A6000):
 ```bash
-make test
+pytest
 ```
 
-Run benchmarks:
+Benchmark numerical precision & generate a report with
+
 ```bash
-make benchmark
+TODO
 ```
 
-For a full list of available commands:
+Benchmark speed & generate a report with
+
 ```bash
-make help
+TODO
 ```
 
 ### Training Example
 
-After installing training dependencies (`make deps-train`), you can run the training script:
+To immediately see the kernel in action, `cd training` and use:
 
 ```bash
 # Single GPU training
-python training/train.py \
+python train.py \
   --batch_size=32 \
   --attention_kernel=power \
   --degree=2 \
@@ -153,7 +145,7 @@ python training/train.py \
   --out_dir=out/my_model
 
 # Multi-GPU training with DDP (example with 4 GPUs)
-torchrun --standalone --nproc_per_node=4 training/train.py \
+torchrun --standalone --nproc_per_node=4 train.py \
   --batch_size=32 \
   --attention_kernel=power \
   --degree=2 \
