@@ -49,7 +49,7 @@ wandb_log = False # disabled by default
 wandb_project = 'owt'
 wandb_run_name = 'gpt2' # 'run' + str(time.time())
 # data
-data_dir = '/shared/mai_datasets/ngpt_owt'
+data_dir = os.path.expanduser('~/mai_datasets/ngpt_owt')
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
 batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
