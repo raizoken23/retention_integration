@@ -1,5 +1,0 @@
--r requirements.txt
-tiktoken
-datasets
-httpx
-tqdm 

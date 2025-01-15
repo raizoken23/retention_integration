@@ -1,3 +1,4 @@
+from typing import Any, Callable
 import torch
 from copy import deepcopy
 
@@ -551,7 +552,6 @@ def check_fake_fn_implementation_matches(fn, fake_fn, inputs):
     fake_output = fake_fn(**inputs)
     check_tensors_properties(real_output, fake_output)
 
-
 def check_inputs_forwards_match(*, fn, inputs1, inputs2, atol=1e-5, verbose=False):
     """Given a function, check that it produces the same output for two sets of inputs.
     
@@ -603,6 +603,12 @@ def check_inputs_backwards_match(*, fn, inputs1, inputs2, atol=1e-5):
     sanity_check(grads2)
     err = check_max_diff(grads1, grads2)
     check_error_within_tolerance(err, atol=atol)
+
+def measure_fn_error(ref_fn: Callable[[], torch.Tensor], target_fn: Callable[[], torch.Tensor], inputs: dict[str, torch.Tensor | float | int | bool | None]) -> float:
+    with torch.no_grad():
+        ref_output = ref_fn(**inputs)
+        target_output = target_fn(**inputs)
+    return check_max_diff(ref_output, target_output)
 
 def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=.1, atol=1e-5):
     """Given two functions, check that they produce the same output for the same inputs.
