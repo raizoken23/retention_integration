@@ -12,6 +12,8 @@ import pprint
 from tests_and_benchmarks.benchmarks import *
 from tests_and_benchmarks._registration import lookup, list_benchmarks
 
+torch._dynamo.config.cache_size_limit = 64 # Increased from a default of 8 to prevent warnings
+
 def make_serializable(obj):
     """Convert non-serializable objects to strings."""
     if isinstance(obj, torch.dtype):
