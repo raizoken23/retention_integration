@@ -66,3 +66,31 @@ def clear_grads(tensor_or_tensors):
             if isinstance(item, torch.Tensor) and item.requires_grad:
                 item.grad = None
 
+def clone_or_none(x):
+    """Helper function to clone a tensor or iterable of tensors if they exist, otherwise return None."""
+    if x is None:
+        return None
+    elif isinstance(x, torch.Tensor):
+        return x.clone()
+    else:
+        return tuple(clone_or_none(item) for item in x)
+
+def prune_non_tensors(out, grads=None):
+    if grads is None:
+        if not isinstance(out, torch.Tensor):
+            out = tuple(o for o in out if isinstance(o, torch.Tensor))
+            return None
+        return None
+    else:
+        if not isinstance(out, torch.Tensor):
+            out, grads = zip(*tuple((o, g) for o, g in zip(out, grads, strict=False) if isinstance(o, torch.Tensor)), strict=False)
+        return out, grads
+
+def tensors_to_ones_like(items):
+    """Helper function to convert a tensor or iterable/dict of tensors to ones of the same shape."""
+    if isinstance(items, torch.Tensor):
+        return torch.ones_like(items)
+    elif isinstance(items, dict):
+        return {k: tensors_to_ones_like(v) for k, v in items.items() if isinstance(v, torch.Tensor)}
+    else:
+        return tuple(tensors_to_ones_like(item) for item in items if isinstance(item, torch.Tensor))

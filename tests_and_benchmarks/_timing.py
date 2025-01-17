@@ -1,38 +1,40 @@
 from collections.abc import Iterable
 
 import torch
+from _utils import clone_or_none, prune_non_tensors, tensors_to_ones_like
 
 
-def get_compiled_versions(fn, grads, *args, warmup=3, **kwargs):
+def get_compiled_versions(fn, inputs, warmup=3):
     """Takes a function and args andreturns compiled versions for fwd, bwd, and fwd+bwd passes.
 
     Args:
         fn: Function to compile
+        inputs: A dict, keyword arguments to pass to fn
 
     Returns:
         Tuple of (fwd_fn, bwd_fn, fwd_bwd_fn)
     """
     # Run forward pass to identify output shapes and check for mutations
-    original_args = args
-    original_grads = grads
-    args = tuple(arg.clone().detach().requires_grad_() if isinstance(arg, torch.Tensor) else arg for arg in args)
+    original_inputs = inputs
+    original_grads = tensors_to_ones_like(inputs)
+    inputs = tuple(arg.clone().detach().requires_grad_() if isinstance(arg, torch.Tensor) else arg for arg in inputs)
     grads = clone_or_none(grads)
-    out = fn(*args, **kwargs)
+    out = fn(**inputs)
     pruned_out, pruned_grads = prune_non_tensors(out, grads)
     torch.autograd.backward(pruned_out, grad_tensors=pruned_grads, retain_graph=True)
     # Check that args match original args
-    check_tensors_unchanged(args, original_args, f'({fn}) ')
+    check_tensors_unchanged(inputs, original_inputs, f'({fn}) ')
     check_tensors_unchanged(grads, original_grads, f'({fn}) Gradient ')
     # Define functions
     def fwd():
         with torch.no_grad():
-            return fn(*args, **kwargs)
+            return fn(**inputs)
     torch._dynamo.config.compiled_autograd = True
     def bwd():
         torch.autograd.backward(pruned_out, grad_tensors=pruned_grads, retain_graph=True)
     torch._dynamo.config.compiled_autograd = False
     def fwd_bwd():
-        out = fn(*args, **kwargs)
+        out = fn(**inputs)
         pruned_out, pruned_grads = prune_non_tensors(out, grads)
         torch.autograd.backward(pruned_out, grad_tensors=pruned_grads)
     # Compile functions
@@ -47,25 +49,6 @@ def get_compiled_versions(fn, grads, *args, warmup=3, **kwargs):
     # Return compiled functions
     return (compiled_fwd, compiled_bwd, compiled_fwd_bwd)
 
-def clone_or_none(x):
-    """Helper function to clone a tensor or iterable of tensors if they exist, otherwise return None."""
-    if x is None:
-        return None
-    elif isinstance(x, torch.Tensor):
-        return x.clone()
-    else:
-        return tuple(clone_or_none(item) for item in x)
-
-def prune_non_tensors(out, grads=None):
-    if grads is None:
-        if not isinstance(out, torch.Tensor):
-            out = tuple(o for o in out if isinstance(o, torch.Tensor))
-            return None
-        return None
-    else:
-        if not isinstance(out, torch.Tensor):
-            out, grads = zip(*tuple((o, g) for o, g in zip(out, grads, strict=False) if isinstance(o, torch.Tensor)), strict=False)
-        return out, grads
 
 
 def check_tensors_unchanged(tensor1, tensor2, prefix=''):
@@ -104,23 +87,21 @@ def estimate_runtime(fn, *args, num1=10, num2=30, **kwargs):
 
     return (t2 - t1) / (num2 - num1)
 
-def get_timing_functions(fn, grads, *args, num1=10, num2=30, warmup=3, **kwargs):
+def get_timing_functions(fn, inputs, num1=10, num2=30, warmup=3):
     """Returns three functions that estimate timings for forward, backward and forward+backward passes.
 
     Args:
         fn: Function to time
-        grads: Gradients to pass to fn
-        *args: Arguments to pass to fn
+        inputs: A dict, keyword arguments to pass to fn
         num1: First number of iterations for timing estimate
         num2: Second number of iterations for timing estimate
         warmup: Number of warmup iterations
-        **kwargs: Keyword arguments to pass to fn
 
     Returns:
         Tuple of (fwd_timing_fn, bwd_timing_fn, fwd_bwd_timing_fn) that each return estimated ms per iteration
     """
     # Get compiled versions
-    fwd, bwd, fwd_bwd = get_compiled_versions(fn, grads, *args, warmup=warmup, **kwargs)
+    fwd, bwd, fwd_bwd = get_compiled_versions(fn, inputs, warmup=warmup)
 
     # Create timing functions that return estimates
     def get_fwd_time():

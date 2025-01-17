@@ -1,12 +1,12 @@
 from typing import Callable, Dict, List, Optional, Any
 from collections import defaultdict
-from benchmarking._benchmark import Benchmark
+from _benchmark import Benchmark
 
 # Global registry state
 _benchmarks: Dict[str, Benchmark] = {}
 _groups: Dict[str, List[str]] = defaultdict(list)
 
-def register(
+def register_benchmark(
     param_configs: List[Dict[str, Any]] = [{}],
     groups: Optional[List[str]] = None,
     label: Optional[str] = None,
