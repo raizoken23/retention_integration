@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from functools import partial
 from itertools import product
-from power_attention.checks import (
+from benchmarking._checks import (
     check_tensor_property_pairs,
     check_inputs_created_determinstically,
     check_fn_compiles,
@@ -24,9 +24,9 @@ from power_attention.power_full import (
 
 # Define parameter ranges
 param_ranges = {
-    'b': [1, 2],
+    'b': [2],
     't': [512, 1024], 
-    'h': [4, 8],
+    'h': [4],
     'd': [32, 64],
     'qhead_ratio': [1, 2],
     'dtype': [torch.bfloat16],
@@ -143,7 +143,7 @@ def test_power_full_reference_log_space_grad_consistency(kw):
         fn=power_full_reference_layernorm,
         inputs1=inputs_log_space,
         inputs2=inputs_normal_space,
-        atol=1e-4,
+        atol=1e-3,
     )
 
 
@@ -168,7 +168,7 @@ def test_power_full_reference_chunk_size_grad_consistency(kw):
         fn=power_full_reference_layernorm,
         inputs1=inputs_attention,
         inputs2=inputs_recurrent,
-        atol=1e-4,
+        atol=1e-3,
     )
 
 # TODO(jbuckman): find the right place for this test

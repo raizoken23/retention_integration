@@ -11,105 +11,7 @@ import yaml
 import inspect
 import sys
 from pathlib import Path
-from power_attention.power_full import (
-    power_full,
-    power_full_reference,
-    create_inputs,
-)
-from power_attention.checks import measure_fn_error
-from power_attention.timing_utils import (
-    get_compiled_versions,
-    estimate_runtime,
-)
 
-### Benchmarking functions
-
-def benchmark_power_full_error():
-    """Benchmark error between target and reference implementations across different settings."""
-    param_ranges = {
-        'b': [1, 2],
-        't': [512, 1024], 
-        'h': [4, 8],
-        'd': [32, 64],
-        'qhead_ratio': [1, 2],
-        'dtype': [torch.bfloat16],
-        'device': ['cuda'],
-        'gating': [False, True],
-        'chunk_size': [None, 128],
-        'deg': [1, 2],
-        'log_space': [False, True],
-    }
-
-    results = []
-    
-    # Generate all combinations
-    keys = param_ranges.keys()
-    for values in itertools.product(*param_ranges.values()):
-        params = dict(zip(keys, values))
-        
-        test_inputs = create_inputs(**params)
-        
-        # Run both implementations
-        with torch.no_grad():
-            max_error = measure_fn_error(power_full_reference, power_full, test_inputs)
-        
-        # Store results with parameters in a flat structure
-        result = {**params}  # Start with all parameters
-        result['value'] = max_error  # Add the measurement
-        results.append(result)
-    
-    return results
-
-def benchmark_power_full_timing():
-    """Benchmark timing of forward and backward passes across different settings."""
-    param_ranges = {
-        'b': [1, 2],
-        't': [512, 1024], 
-        'h': [4, 8],
-        'd': [32, 64],
-        'qhead_ratio': [1, 2],
-        'dtype': [torch.bfloat16],
-        'device': ['cuda'],
-        'gating': [False, True],
-        'chunk_size': [None, 128],
-        'deg': [1, 2],
-        'log_space': [False, True],
-    }
-
-    results = []
-    
-    # Generate all combinations
-    keys = param_ranges.keys()
-    for values in itertools.product(*param_ranges.values()):
-        params = dict(zip(keys, values))
-        
-        # Create inputs and get compiled versions
-        test_inputs = create_inputs(**params, requires_grad=True)
-        input_args = list(test_inputs.values())
-        
-        def fn(*args):
-            return power_full(**dict(zip(test_inputs.keys(), args)))
-            
-        fwd_fn, bwd_fn, _ = get_compiled_versions(fn, *input_args)
-        
-        # Measure timings and create a result for each stage
-        base_result = {**params}  # Start with all parameters
-        
-        # Forward pass timing
-        fwd_result = {**base_result}
-        fwd_result['stage'] = 'fwd'
-        fwd_result['value'] = estimate_runtime(fwd_fn)
-        results.append(fwd_result)
-        
-        # Backward pass timing
-        bwd_result = {**base_result}
-        bwd_result['stage'] = 'bwd'
-        bwd_result['value'] = estimate_runtime(bwd_fn)
-        results.append(bwd_result)
-    
-    return results
-
-### Benchmarking machinery
 
 def make_serializable(obj):
     """Convert non-serializable objects to strings."""
@@ -121,13 +23,6 @@ def make_serializable(obj):
         return [make_serializable(x) for x in obj]
     return obj
 
-def discover_benchmarks():
-    """Discover all functions starting with 'benchmark_' in current module."""
-    return {
-        name[10:]: obj  # Strip 'benchmark_' prefix for the key
-        for name, obj in inspect.getmembers(sys.modules[__name__])
-        if inspect.isfunction(obj) and name.startswith('benchmark_')
-    }
 
 def load_existing_results(output_path):
     """Load existing results from YAML file if it exists."""
@@ -136,6 +31,7 @@ def load_existing_results(output_path):
             return yaml.safe_load(f) or {}
     except FileNotFoundError:
         return {}
+
 
 @click.command()
 @click.option('--output', '-o', 
