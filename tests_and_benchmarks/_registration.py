@@ -1,6 +1,6 @@
 from typing import Callable, Dict, List, Optional, Any
 from collections import defaultdict
-from _benchmark import Benchmark
+from tests_and_benchmarks._benchmark import Benchmark
 
 # Global registry state
 _benchmarks: Dict[str, Benchmark] = {}
@@ -42,6 +42,32 @@ def get_group(group: str) -> List[Benchmark]:
     if group not in _groups:
         raise KeyError(f"No benchmark group named {group}")
     return [_benchmarks[name] for name in _groups[group]]
+
+def lookup(*names: str) -> List[Benchmark]:
+    """Get benchmarks by name or group name.
+    
+    Args:
+        *names: Names of benchmarks or benchmark groups
+        
+    Returns:
+        List of matching benchmarks, with duplicates removed
+        
+    Raises:
+        KeyError: If any name is not found as either a benchmark or group
+    """
+    result = set()
+    for name in names:
+        try:
+            # Try as individual benchmark first
+            benchmark = get_benchmark(name)
+            result.add(benchmark)
+        except KeyError:
+            try:
+                # Try as group name
+                result.update(get_group(name))
+            except KeyError:
+                raise KeyError(f"'{name}' not found as benchmark or group name")
+    return sorted(result, key=lambda x: x.name)
 
 def list_benchmarks() -> List[str]:
     """List all registered benchmark names."""

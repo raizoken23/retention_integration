@@ -1,5 +1,4 @@
 import torch
-from copy import deepcopy
 
 def same_device(device1: torch.device, device2: torch.device) -> bool:
     """Return True if two devices are effectively the same."""
@@ -94,3 +93,47 @@ def tensors_to_ones_like(items):
         return {k: tensors_to_ones_like(v) for k, v in items.items() if isinstance(v, torch.Tensor)}
     else:
         return tuple(tensors_to_ones_like(item) for item in items if isinstance(item, torch.Tensor))
+
+def try_convert_and_compare(thing, string):
+    """Helper function that attempts to convert a string to the type of 'thing' and checks equality.
+    
+    Args:
+        thing: The object to compare against
+        string: String to try converting to thing's type
+        
+    Returns:
+        bool: True if conversion succeeded and values are equal, False otherwise
+    """
+    if thing is None:
+        return string == "None"
+    try:
+        converted = type(thing)(string)
+        return converted == thing
+    except (ValueError, TypeError):
+        return False
+
+def check_filter_matches(filter_strings, attrs):
+    """Helper function that checks if a dict matches a list of key=value filter strings.
+    
+    Args:
+        filter_strings: List of strings in format "key=value"
+        attrs: Dict to check against
+        
+    Returns:
+        bool: True if all filter key/value pairs match corresponding entries in attrs
+        
+    Raises:
+        ValueError: If any filter string is not in the format "key=value"
+    """
+    for f in filter_strings:
+        try:
+            key, value = f.split('=')
+        except ValueError:
+            raise ValueError(f"Filter string '{f}' is not in the format 'key=value'")
+            
+        if key not in attrs:
+            return False
+        if not try_convert_and_compare(attrs[key], value):
+            return False
+            
+    return True

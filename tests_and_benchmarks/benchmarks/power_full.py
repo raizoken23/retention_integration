@@ -5,14 +5,12 @@ from itertools import product
 from tests_and_benchmarks._benchmark import Measurement
 from tests_and_benchmarks._registration import register_benchmark
 from tests_and_benchmarks._timing import get_timing_functions
-## POWER FULL TESTS ##
+
 from power_attention.power_full import (
     power_full,
-    power_full_reference,
     create_inputs,
 )
 
-# Define parameter ranges
 shapes = [
     {'b': 64, 't': 512,  'h': 12, 'd': 64, 'qhead_ratio': 1},
     {'b': 64, 't': 512,  'h':  6, 'd': 64, 'qhead_ratio': 2},
@@ -27,7 +25,6 @@ other_param_ranges = {
     'deg': [1, 2],
     'log_space': [False, True],
 }
-# Generate all combinations
 TEST_CASES = [
     {**shape, **dict(zip(other_param_ranges.keys(), values))}
     for shape in shapes
@@ -35,8 +32,8 @@ TEST_CASES = [
 ]
 
 @register_benchmark(param_configs=TEST_CASES)
-def power_full_speed(kw):
-    inputs = create_inputs(**kw)
+def power_full_speed(**kw):
+    inputs = create_inputs(**kw, requires_grad=True)
     fwd_timing_fn, bwd_timing_fn, fwd_bwd_timing_fn = get_timing_functions(power_full, inputs)
     fwd_time = fwd_timing_fn()
     bwd_time = bwd_timing_fn()

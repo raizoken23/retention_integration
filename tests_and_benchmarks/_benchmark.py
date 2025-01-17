@@ -1,6 +1,7 @@
 from typing import Callable, Dict, List, Set, Optional, Any, Union, NamedTuple
 from dataclasses import dataclass, field
 from collections import defaultdict
+from tests_and_benchmarks._utils import check_filter_matches
 
 @dataclass
 class Measurement:
@@ -25,14 +26,52 @@ class Benchmark:
     @property
     def name(self) -> str:
         """Full name of the benchmark, including lablel as suffix if present."""
-        if self.suffix:
+        if self.label:
             return f"{self.fn_name}_{self.label}"
         return self.fn_name
+    
+    def __str__(self) -> str:
+        """String representation of the benchmark."""
+        return f'<Benchmark {self.name} ({len(self.param_configs)})>'
+    
+    def __repr__(self) -> str:
+        """String representation of the benchmark."""
+        return str(self)
+    
+    def __hash__(self) -> int:
+        """Make benchmark hashable by its name."""
+        return hash(self.name)
+
+    def __eq__(self, other) -> bool:
+        """Define equality based on name for hash consistency."""
+        if not isinstance(other, Benchmark):
+            return NotImplemented
+        return self.name == other.name
+    
+    def filter(self, filter: Dict[str, Any]) -> 'Benchmark':
+        """Filter the benchmark's parameter configurations and return a new Benchmark with filtered configs.
+        
+        Args:
+            filter: List of filter strings in "key=value" format
+            
+        Returns:
+            New Benchmark object with filtered parameter configurations and updated label
+        """
+        filtered_configs = [params for params in self.param_configs if check_filter_matches(filter, params)]
+        filter_str = "filtered_" + ",".join(filter)
+        new_label = f"{self.label}_{filter_str}" if self.label else filter_str
+        return Benchmark(
+            func=self.func,
+            param_configs=filtered_configs, 
+            groups=self.groups,
+            label=new_label
+        )
 
     def __call__(self) -> List[Measurement]:
         """Run the benchmark function with all parameter configurations."""
         measurements = []
         for params in self.param_configs:
+
             result = self.func(**params)
             
             # Handle different return types

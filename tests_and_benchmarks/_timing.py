@@ -1,11 +1,11 @@
 from collections.abc import Iterable
 
 import torch
-from _utils import clone_or_none, prune_non_tensors, tensors_to_ones_like
+from tests_and_benchmarks._utils import clone_or_none, prune_non_tensors, tensors_to_ones_like
 
 
 def get_compiled_versions(fn, inputs, warmup=3):
-    """Takes a function and args andreturns compiled versions for fwd, bwd, and fwd+bwd passes.
+    """Takes a function and args and returns compiled versions for fwd, bwd, and fwd+bwd passes.
 
     Args:
         fn: Function to compile
@@ -15,28 +15,19 @@ def get_compiled_versions(fn, inputs, warmup=3):
         Tuple of (fwd_fn, bwd_fn, fwd_bwd_fn)
     """
     # Run forward pass to identify output shapes and check for mutations
-    original_inputs = inputs
-    original_grads = tensors_to_ones_like(inputs)
-    inputs = tuple(arg.clone().detach().requires_grad_() if isinstance(arg, torch.Tensor) else arg for arg in inputs)
-    grads = clone_or_none(grads)
-    out = fn(**inputs)
-    pruned_out, pruned_grads = prune_non_tensors(out, grads)
-    torch.autograd.backward(pruned_out, grad_tensors=pruned_grads, retain_graph=True)
-    # Check that args match original args
-    check_tensors_unchanged(inputs, original_inputs, f'({fn}) ')
-    check_tensors_unchanged(grads, original_grads, f'({fn}) Gradient ')
     # Define functions
     def fwd():
         with torch.no_grad():
             return fn(**inputs)
     torch._dynamo.config.compiled_autograd = True
+    outputs = fn(**inputs)
+    grads = tensors_to_ones_like(outputs)
     def bwd():
-        torch.autograd.backward(pruned_out, grad_tensors=pruned_grads, retain_graph=True)
+        torch.autograd.backward(outputs, grad_tensors=grads, retain_graph=True)
     torch._dynamo.config.compiled_autograd = False
     def fwd_bwd():
-        out = fn(**inputs)
-        pruned_out, pruned_grads = prune_non_tensors(out, grads)
-        torch.autograd.backward(pruned_out, grad_tensors=pruned_grads)
+        outputs = fn(**inputs)
+        torch.autograd.backward(outputs, grad_tensors=grads)
     # Compile functions
     compiled_fwd = torch.compile(fwd, dynamic=False)
     compiled_bwd = torch.compile(bwd, dynamic=False)

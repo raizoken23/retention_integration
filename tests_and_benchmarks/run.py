@@ -1,17 +1,16 @@
 # Benchmarking either precision or timing of target implementations, to
 # detect regressions over time.
 # The idea is to run this every commit, which will produce a YAML file with the results,
-# in which we can see the error and time for each test case. Error and times are nothing special,
-# a benchmark could produce any scalar value.
+# in which we can see the error and time for each test case. (Error and times are nothing special,
+# a benchmark could produce any scalar value.)
 
 import torch
-import itertools
 import click
 import yaml
-import inspect
-import sys
 from pathlib import Path
-
+import pprint
+from tests_and_benchmarks.benchmarks import *
+from tests_and_benchmarks._registration import lookup, list_benchmarks
 
 def make_serializable(obj):
     """Convert non-serializable objects to strings."""
@@ -28,9 +27,9 @@ def load_existing_results(output_path):
     """Load existing results from YAML file if it exists."""
     try:
         with open(output_path) as f:
-            return yaml.safe_load(f) or {}
+            return yaml.safe_load(f) or []
     except FileNotFoundError:
-        return {}
+        return []
 
 
 @click.command()
@@ -40,57 +39,56 @@ def load_existing_results(output_path):
               help='Output YAML file path (defaults to benchmark_results.yaml)')
 @click.option('--benchmarks', '-b', 
               multiple=True,
-              help='Specific benchmarks to run (without benchmark_ prefix). If none specified, runs all.')
+              help='Benchmarks or groups of benchmarks to run.')
 @click.option('--reset', is_flag=True,
               help='Start with fresh results, ignoring any existing ones in the output file.')
-def main(output, benchmarks, reset):
+@click.option('--filter', '-f',
+              type=str,
+              multiple=True,
+              help='Filter measurements by key=value pairs. Can be specified multiple times.')
+def main(output, benchmarks, reset, filter):
     """Run benchmarks and save results to YAML.
     
     If no benchmarks specified, runs all discovered benchmarks.
     If no output specified, saves to benchmark_results.yaml
     By default, updates existing results in the output file unless --reset is specified.
     """
-    all_benchmarks = discover_benchmarks()
-    
-    if not all_benchmarks:
-        click.echo("No benchmarks found! Add functions starting with 'benchmark_'")
-        return
 
     # Filter benchmarks if specified
-    if benchmarks:
-        selected_benchmarks = {
-            name: fn for name, fn in all_benchmarks.items()
-            if name in benchmarks
-        }
-        if not selected_benchmarks:
-            available = ", ".join(all_benchmarks.keys())
-            click.echo(f"No matching benchmarks found. Available benchmarks: {available}")
-            return
-        benchmarks_to_run = selected_benchmarks
-    else:
-        benchmarks_to_run = all_benchmarks
+    if not benchmarks:
+        benchmarks = list_benchmarks() # all benchmarks
+    benchmarks = lookup(*benchmarks)
+    if filter:
+        benchmarks = [benchmark.filter(filter) for benchmark in benchmarks]
 
-    # Set default output if none specified
-    if output is None:
-        output = Path('./benchmark_results.yaml')
+    benchmark_str = '\n\t'.join(str(b) for b in benchmarks)
+    click.echo(f"Running {len(benchmarks)} benchmarks ({sum(len(b.param_configs) for b in benchmarks)} configs): \n\t{benchmark_str}")
 
     # Load existing results unless reset is specified
-    results = {} if reset else load_existing_results(output)
+    results = [] if (reset or not output) else load_existing_results(output)
     
     # Run selected benchmarks and collect results
-    with click.progressbar(benchmarks_to_run.items(), label='Running benchmarks') as bar:
-        for name, benchmark_fn in bar:
-            results[name] = benchmark_fn()
+    with click.progressbar(benchmarks, label='Running benchmarks') as bar:
+        for benchmark in bar:
+            measurements = benchmark()
+            for measurement in measurements:
+                results.append({
+                    'name': measurement.name,
+                    'attrs': measurement.attrs,
+                    'value': measurement.value
+                })
     
     # Make results serializable before saving
     serializable_results = make_serializable(results)
     
-    # Save results to YAML
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with open(output, 'w') as f:
-        yaml.safe_dump(serializable_results, f, default_flow_style=False, sort_keys=False)
-    
-    click.echo(f"Benchmark results {'saved to' if reset else 'updated in'} {output}")
+    if output:
+        # Save results to YAML
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with open(output, 'w') as f:
+            yaml.safe_dump(serializable_results, f, default_flow_style=False, sort_keys=False)        
+        click.echo(f"Benchmark results {'saved to' if reset else 'updated in'} {output}")
+    else:
+        click.echo(pprint.pformat(serializable_results))
 
 if __name__ == '__main__':
-    main() 
+    main()
