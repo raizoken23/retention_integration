@@ -16,7 +16,7 @@ import subprocess
 import os
 from perf._benchmark import Measurement
 
-torch._dynamo.config.cache_size_limit = 64 # Increased from a default of 8 to prevent warnings
+torch._dynamo.config.cache_size_limit = 128 # Increased from a default of 8 to prevent warnings
 
 
 def load_results(file_path):
