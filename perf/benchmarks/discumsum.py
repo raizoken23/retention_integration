@@ -8,25 +8,27 @@ from perf._timing import benchmark_speed
 from perf._utils import describe_gpu
 from perf._precision import benchmark_precision
 
-from power_attention.power_full import (
-    power_full,
-    power_full_reference,
+from power_attention._discumsum.impl import (
+    discumsum,
     create_inputs,
 )
+from power_attention._discumsum.reference import (
+    discumsum_reference,
+)
 
+
+
+
+# Speed test configurations
 shapes = [
-    {'b': 64, 't': 512,  'h': 12, 'd': 64, 'qhead_ratio': 1},
-    {'b': 64, 't': 512,  'h':  6, 'd': 64, 'qhead_ratio': 2},
-    {'b': 2, 't': 16384, 'h': 12, 'd': 64, 'qhead_ratio': 1}, 
-    {'b': 2, 't': 16384, 'h':  6, 'd': 64, 'qhead_ratio': 2}
+    {'b': 64, 'n': 4, 'h': 6, 'D': 64, 'd': 64},
+    {'b': 64, 'n': 4, 'h': 6, 'D': 2040, 'd': 64},
+    {'b': 2, 'n': 16, 'h': 6, 'D': 64, 'd': 64},
+    {'b': 2, 'n': 16, 'h': 6, 'D': 2040, 'd': 64}
 ]
 other_param_ranges = {
-    'dtype': [torch.bfloat16],
+    'X_dtype': [torch.bfloat16],
     'device': ['cuda'],
-    'gating': [False, True],
-    'chunk_size': [None, 128],
-    'deg': [1, 2],
-    'log_space': [False, True],
     'direction': ['fwd', 'bwd', 'fwd+bwd'],
 }
 SPEED_TEST_CASES = [
@@ -35,9 +37,9 @@ SPEED_TEST_CASES = [
     for values in product(*other_param_ranges.values())
 ]
 
-@register_benchmark(param_configs=SPEED_TEST_CASES, groups=['speed', 'power_full'])
-def power_full_speed(direction=None, **kw):
-    """Measure speed of power attention implementation.
+@register_benchmark(param_configs=SPEED_TEST_CASES, groups=['speed', 'discumsum'])
+def discumsum_speed(direction=None, **kw):
+    """Measure speed of discumsum implementation.
     
     Args:
         direction: str. One of 'fwd', 'bwd', or 'fwd+bwd' to measure forward pass,
@@ -46,29 +48,23 @@ def power_full_speed(direction=None, **kw):
             
     Returns a Measurement object with the timing in milliseconds and GPU info.
     """
-    time = benchmark_speed(direction, power_full, create_inputs, kw)
+    time = benchmark_speed(direction, discumsum, create_inputs, kw)
     gpu_info = describe_gpu()
     return Measurement(attrs=dict(gpus=gpu_info), value=time)
 
 
 
+
+# Precision test configurations
 shapes = [
-    {'t': 512, 'chunk_size': None},
-    {'t': 512, 'chunk_size': 128},
-    {'t': 16384, 'chunk_size': None},
-    {'t': 16384, 'chunk_size': 128},
-    {'t': 16384, 'chunk_size': 1024},
+    {'b': 1, 'n': 8, 'h': 1, 'D': 64, 'd': 64},
+    {'b': 1, 'n': 8, 'h': 1, 'D': 2048, 'd': 64},
+    {'b': 1, 'n': 64, 'h': 1, 'D': 64, 'd': 64},
+    {'b': 1, 'n': 64, 'h': 1, 'D': 2048, 'd': 64},
 ]
 other_param_ranges = {
-    'b': [1],
-    'h': [1],
-    'd': [64],
-    'qhead_ratio': [1],
-    'dtype': [torch.bfloat16],
+    'X_dtype': [torch.bfloat16],
     'device': ['cuda'],
-    'gating': [False, True],
-    'deg': [1, 2],
-    'log_space': [False, True],
     'direction': ['fwd', 'bwd'],
 }
 PRECISION_TEST_CASES = [
@@ -77,29 +73,29 @@ PRECISION_TEST_CASES = [
     for values in product(*other_param_ranges.values())
 ]
 
-@register_benchmark(param_configs=PRECISION_TEST_CASES, groups=['precision', 'power_full'])
-def power_full_precision(direction=None, **kw):
-    """Measure precision of power attention implementation compared to fp32 reference.
+@register_benchmark(param_configs=PRECISION_TEST_CASES, groups=['precision', 'discumsum'])
+def discumsum_precision(direction=None, **kw):
+    """Measure precision of discumsum implementation compared to fp32 reference.
     
     Args:
         direction: str. One of 'fwd' or 'bwd' to measure forward pass or backward pass precision
         **kw: Keyword arguments passed to create_inputs() to configure the test case
             
     Returns:
-        For forward pass (direction='fwd'): Measurement of error of Y.
+        For forward pass (direction='fwd'): Measurement of error of output.
         For backward pass (direction='bwd'): A list of Measurement objects, one for each input
-            gradient (Q, K, V and optionally log_G), containing the maximum absolute difference
-            between test and reference gradients
+            gradient (X and log_G), containing the maximum absolute difference between test
+            and reference gradients.
     """
-    error = benchmark_precision(direction, power_full_reference, power_full, create_inputs, 
-                                kw | {'dtype': torch.float32, 'chunk_size': None, 'log_space': True}, # reference is fp32 and no chunking and log_space
+    error = benchmark_precision(direction, discumsum_reference, discumsum, create_inputs, 
+                                kw | {'X_dtype': torch.float32}, # reference is fp32
                                 kw)
     if direction == 'fwd':
         return Measurement(value=error)
     elif direction == 'bwd':
         return [
             Measurement(attrs=dict(which=f'{inp}_grad'), value=error[inp])
-            for inp in ['Q', 'K', 'V'] + (['log_G'] if kw['gating'] else [])
+            for inp in ['X', 'log_G']
         ]
     else:
         raise ValueError(f"Invalid direction: {direction}")

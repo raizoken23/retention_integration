@@ -105,3 +105,28 @@ def get_timing_functions(fn, inputs, num1=10, num2=30, warmup=3):
         return estimate_runtime(fwd_bwd, num1=num1, num2=num2)
 
     return get_fwd_time, get_bwd_time, get_fwd_bwd_time
+
+def benchmark_speed(direction, fn, create_inputs, create_inputs_kwargs):
+    """Measure speed of a function implementation.
+    
+    Args:
+        direction: str. One of 'fwd', 'bwd', or 'fwd+bwd' to measure forward pass,
+            backward pass, or combined forward+backward pass timing
+        fn: Function to benchmark
+        create_inputs: Function that creates input tensors for fn
+        **kw: Keyword arguments passed to create_inputs() to configure the test case
+            
+    Returns:
+        float: Time in milliseconds per iteration
+    """
+    inputs = create_inputs(**create_inputs_kwargs, requires_grad=True)
+    fwd_timing_fn, bwd_timing_fn, fwd_bwd_timing_fn = get_timing_functions(fn, inputs)
+    if direction == 'fwd':
+        time = fwd_timing_fn()
+    elif direction == 'bwd':
+        time = bwd_timing_fn()
+    elif direction == 'fwd+bwd':
+        time = fwd_bwd_timing_fn()
+    else:
+        raise ValueError(f"Invalid direction: {direction}")
+    return time
