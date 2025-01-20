@@ -49,8 +49,6 @@ def test_query_state_create_inputs(kw):
             (inputs['Q'], ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device'])),
             (inputs['S'], ((kw['b'], kw['n'], kw['h'], D, kw['d']), kw['dtype'], kw['device'])),
             (inputs['Y'], ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device']))
-        )
-        check_tensor_property_pairs(
             (inputs['rowmax'], ((kw['b'], kw['n'], kw['c'], kw['h']), torch.float32, kw['device'])))
     else:
         check_tensor_property_pairs(
