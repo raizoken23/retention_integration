@@ -15,7 +15,7 @@ from power_attention._utils import compute_expanded_dim
 def query_state(Q : torch.Tensor, S : torch.Tensor,
                 Y : Optional[torch.Tensor],
                 rowmax : Optional[torch.Tensor],
-                deg : int, stabilizer : Optional[float], zero_initial_state : bool) -> torch.Tensor:
+                deg : int, scale : Optional[float], zero_initial_state : bool) -> torch.Tensor:
     r"""Compute query interaction with expanded state vectors.
 
     This function implements the query-state interaction from [1]. It computes how queries
@@ -33,7 +33,7 @@ def query_state(Q : torch.Tensor, S : torch.Tensor,
     The computation can be numerically unstable in fp16, so we provide two stabilization
     mechanisms:
 
-    1. A stabilizer factor that scales the symmetric power embedding
+    1. A scaling factor that scales the symmetric power embedding
     2. Optional output scaling using Y and rowmax from the attention computation
 
     Args:
@@ -57,16 +57,16 @@ def query_state(Q : torch.Tensor, S : torch.Tensor,
         - Feature dimension must be 32 or 64
         - Inputs must be fp16 or bf16
         - chunk_size must be at least 128 and a multiple of 16
-        - Stabilization is particularly important for deg > 2
+        - Scaling is particularly important for deg > 2
 
     References:
         [1] J. Buckman, C. Gelada, and S. Zhang, "Symmetric Power Transformers." 
             Manifest AI, Aug. 15, 2024.
     """
     b, n, c, h, d = Q.shape
-    if stabilizer is None:
-        stabilizer = 1.
-    O = query_state_fwd(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state)
+    if scale is None:
+        scale = 1.
+    O = query_state_fwd(Q, S, Y, rowmax, deg, scale, zero_initial_state)
     return O
 @query_state.register_fake
 def query_state_fake(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state):

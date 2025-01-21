@@ -12,9 +12,10 @@ from power_attention._discumsum import discumsum, discumsum_reference
 from power_attention._attention import attention, attention_reference
 from power_attention._config import normal_space
 
+
+
 def p1_full(Q, K, V, log_G=None, initial_state=None,
-               stabilizer=None, ε=1e-5, chunk_size=None,
-               deterministic=False,
+               scale=None, chunk_size=None,
                use_reference=False):
     if use_reference:
         _attention = attention_reference
@@ -51,7 +52,7 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
             if gating:
                 log_G = log_G.repeat_interleave(qhead_ratio, dim=2)
         log_G_accum = log_G.cumsum(1) if log_G is not None else None
-        Y, _, _ = _attention(Q, K, V, log_G_accum, 1, stabilizer, ε, deterministic, False, False, False)
+        Y, _, _ = _attention(Q, K, V, log_G_accum, 1, scale)
         assert Y.is_contiguous(), 'Y must be contiguous'
         return Y
 
@@ -89,7 +90,7 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
         V_flatbatch = V_flatbatch.repeat_interleave(qhead_ratio, dim=2)
         if gating:
             log_G_intrachunk_accum_flatbatch = log_G_intrachunk_accum_flatbatch.repeat_interleave(qhead_ratio, dim=2)
-    attn_Y, _, rowmax = _attention(Q_flatbatch, K_flatbatch, V_flatbatch, log_G_intrachunk_accum_flatbatch, 1, stabilizer, ε, deterministic, False, False, normal_space)
+    attn_Y, _, rowmax = _attention(Q_flatbatch, K_flatbatch, V_flatbatch, log_G_intrachunk_accum_flatbatch, 1)
     attn_Y = attn_Y.view(b, n, c, hq, d)
     rowmax = rowmax.view(b, n, c, hq, 1).detach()
 
@@ -102,7 +103,7 @@ def p1_full(Q, K, V, log_G=None, initial_state=None,
 
     # correction = (stabilizer / rowmax)
     # qs_Y = _query_state((Q * correction).to(dtype), S)
-    Y = _query_state(Q, S, attn_Y, rowmax, 1, stabilizer)
+    Y = _query_state(Q, S, attn_Y, rowmax, 1, scale)
     return Y.reshape(b, t, hq, d)
 
 

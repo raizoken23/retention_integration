@@ -5,14 +5,12 @@
 import torch
 import torch.nn.functional as F
 from enum import Enum
-from functools import partial
 from torch.utils._pytree import tree_map
 from power_attention._attention import attention, attention_reference
 from power_attention._update_state import update_state, update_state_reference
 from power_attention._discumsum import discumsum, discumsum_reference
 from power_attention._query_state import query_state, query_state_reference
-from power_attention._p1_full import p1_full, _update_state as update_state_matmul, _query_state as query_state_matmul
-from power_attention._config import normal_space
+from power_attention._p1_full import _update_state as update_state_matmul, _query_state as query_state_matmul
 from power_attention._utils import compute_expanded_dim
 import math
 
@@ -49,70 +47,6 @@ IMPL_MAP = {
     AttentionImpl.REFERENCE: attention_reference,
     # AttentionImpl.TRITON: attention_triton,
 }
-
-POWER_FULL_DOC = r"""
-Compute symmetric power attention with optional chunking.
-
-This function implements the symmetric power attention mechanism from [1]. It generalizes
-linear transformers by using symmetric power embeddings, which provide better expressivity
-while maintaining tractable state sizes.
-
-For a sequence of queries $Q_i$, keys $K_i$, and values $V_i ∈ ℝ^d$, the attention mechanism
-computes outputs $Y_i ∈ ℝ^d$ as:
-
-$$Y_i = \sum_{j=1}^i A_{ij} V_j$$
-
-where the attention weights are:
-
-$$A_{ij} = \frac{\phi(Q_i)^\top \phi(K_j)}{\sum_{k=1}^i \phi(Q_i)^\top \phi(K_k)}$$
-
-Here $\phi$ is the symmetric power embedding that maps vectors to their deg-th symmetric power.
-For long sequences, we use an equivalent RNN formulation with states $S_i$ and $Z_i$:
-
-$$Y_{i} = \frac{S_i \phi(Q_i)}{Z_i \phi(Q_i)} \qquad Z_i = Z_{i-1} + \phi(K_i)^T \qquad S_i = S_{i-1} + V_i \phi(K_i)^T$$
-
-The state size for each head is $D(d+1)$ where $D = \binom{d+deg-1}{deg}$, providing massive
-savings over full tensor products (e.g., 96% reduction for deg=4).
-
-Args:
-    Q: Query tensor of shape `(batch_size, seq_len, num_q_heads, head_dim)`.
-    K: Key tensor of shape `(batch_size, seq_len, num_kv_heads, head_dim)`.
-    V: Value tensor of shape `(batch_size, seq_len, num_kv_heads, head_dim)`.
-    log_G: Optional log gating factors of shape `(batch_size, seq_len, num_kv_heads)`.
-        When provided, applies multiplicative gating to attention weights.
-    initial_state: Optional initial state for recurrent processing. Not implemented yet.
-    deg: Power attention degree. Must be even. Higher values make attention more "focused".
-        Common values are:
-        * deg=2: 49% state size reduction, slightly worse than baseline
-        * deg=4: 96% reduction, outperforms baseline
-        * deg=6: 99.8% reduction, best performance but large state
-    stabilizer: Optional stabilization factor for numerical stability.
-        Defaults to expanded_dim for fp16 computations.
-    ε: Small constant for numerical stability. Defaults to 1e-5.
-    chunk_size: Size of chunks for processing long sequences.
-        If None, uses O(n²) attention formulation.
-        If set, uses O(n) RNN formulation with chunked computation.
-    deterministic: Whether to use deterministic gradient accumulation.
-        May slow things down with small batch sizes but ensures reproducibility.
-    use_reference: Whether to use reference (non-optimized) implementation.
-    normal_space: Whether to compute in normal space vs log space.
-        Normal space is faster but potentially less numerically stable.
-
-Returns:
-    torch.Tensor: Output tensor of shape `(batch_size, seq_len, num_q_heads, head_dim)`.
-
-Note:
-    - Input tensors must have matching dtypes (fp16, bf16, or fp32)
-    - If provided, log_G must be float32
-    - Sequence length must be evenly divisible by chunk size
-    - num_q_heads must be a multiple of num_kv_heads (for multi-query attention)
-    - deg must be even for the symmetric power formulation
-    - State size per head is $D(d+1)$ where $D = \binom{d+deg-1}{deg}$
-
-References:
-    [1] J. Buckman, C. Gelada, and S. Zhang, "Symmetric Power Transformers." 
-        Manifest AI, Aug. 15, 2024.
-"""
 
 class PowerFullFactory:
     @staticmethod
@@ -157,7 +91,7 @@ class PowerFullFactory:
                 log_G = log_G.to(torch.float32)
 
             if not scale:
-                scale = 1.0
+                scale = 1.0 / d**0.5
 
             # Quick return for simple quadratic attention
             if t <= c:
@@ -272,17 +206,10 @@ Args:
         * deg=2: 49% state size reduction, slightly worse than baseline
         * deg=4: 96% reduction, outperforms baseline
         * deg=6: 99.8% reduction, best performance but large state
-    stabilizer: Optional stabilization factor for numerical stability.
-        Defaults to expanded_dim for fp16 computations.
-    ε: Small constant for numerical stability. Defaults to 1e-5.
+    scale: Scale factor for attention weights. Defaults to 1.0.
     chunk_size: Size of chunks for processing long sequences.
         If None, uses O(n²) attention formulation.
         If set, uses O(n) RNN formulation with chunked computation.
-    deterministic: Whether to use deterministic gradient accumulation.
-        May slow things down with small batch sizes but ensures reproducibility.
-    use_reference: Whether to use reference (non-optimized) implementation.
-    normal_space: Whether to compute in normal space vs log space.
-        Normal space is faster but potentially less numerically stable.
 
 Returns:
     torch.Tensor: Output tensor of shape `(batch_size, seq_len, num_q_heads, head_dim)`.
