@@ -32,7 +32,7 @@ class QueryStateReference(torch.autograd.Function):
         return phi_Q.to(Q.dtype)
 
     @staticmethod
-    def scale_combine_outputs(Y, att_Y, stabilizer, rowmax, zero_initial_state, eps):
+    def scale_combine_outputs(Y, att_Y, stabilizer, rowmax, zero_initial_state):
         """ Scale the outputs from attention and query state and combine them to prevent overflow
         """
         b, n, c, h, d = Y.shape
@@ -66,17 +66,16 @@ class QueryStateReference(torch.autograd.Function):
         return dY_attn, dY_qs
 
     @staticmethod
-    def forward(ctx, Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps, deterministic):
+    def forward(ctx, Q, S, Y, rowmax, deg, stabilizer, zero_initial_state):
         """Compute query state output
         args:
             Q: [b, n, c, h, d]
             S: [b, n, h, D, d]
             Y: [b, n, c, h, d] or None
-            rowmax: [b, n, c, h] or None
+            rowmax: [b, n, c, h] or None, always in log space
             deg: int
             stabilizer: float or None
             zero_initial_state: bool
-            eps: float
         returns:
             Y: [b, n, c, h, d]
         """
@@ -100,7 +99,7 @@ class QueryStateReference(torch.autograd.Function):
 
         if att_Y is not None:
             assert rowmax is not None, "rowmax must be provided when fused is true"
-            Y = QueryStateReference.scale_combine_outputs(Y, att_Y, stabilizer, rowmax, zero_initial_state, eps)
+            Y = QueryStateReference.scale_combine_outputs(Y, att_Y, stabilizer, rowmax, zero_initial_state)
 
         ctx.save_for_backward(Q, S, rowmax)
         ctx.stabilizer = stabilizer
@@ -143,7 +142,6 @@ class QueryStateReference(torch.autograd.Function):
         Q_inner = rearrange(Q, 'b n h c (y i) -> b n h c y i', i=InnerBlock)
         Q_outer = rearrange(Q, 'b n h c (x o) -> b n h c x o', o=OuterBlock)
         y, x = ctx.d // InnerBlock, ctx.d // OuterBlock
-        BlockD = InnerBlock * OuterBlock
 
         for j in range(ctx.d // OuterBlock):
             for i in range((j * OuterBlock) // InnerBlock, y):
@@ -165,6 +163,6 @@ def query_state_reference(*args, **kwargs):
         raise ValueError("Cannot pass both args and kwargs")
     if kwargs:
         args = (kwargs['Q'], kwargs['S'], kwargs['Y'], kwargs['rowmax'], kwargs['deg'], 
-                kwargs['stabilizer'], kwargs['zero_initial_state'], kwargs['eps'], kwargs['deterministic'])
+                kwargs['stabilizer'], kwargs['zero_initial_state'])
     return QueryStateReference.apply(*args)
 query_state_reference_fwd = dummify(QueryStateReference.forward)

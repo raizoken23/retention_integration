@@ -9,12 +9,13 @@ from power_attention_cuda import compute_query_states as compute_query_states_cu
 from typing import Optional
 
 from power_attention._utils import compute_expanded_dim
+from power_attention._config import eps
 
 @torch.library.custom_op('power_attention::query_state_forward', mutates_args=('Y',), device_types='cuda')
 def query_state_fwd(Q : torch.Tensor, S : torch.Tensor,
                     Y : Optional[torch.Tensor],
                     rowmax : Optional[torch.Tensor], deg : int,
-                    stabilizer : float, zero_initial_state : bool, eps : float) -> torch.Tensor:
+                    stabilizer : float, zero_initial_state : bool) -> torch.Tensor:
     """Compute query state forward pass.
     
     Input shapes:
@@ -45,7 +46,7 @@ def query_state_fwd(Q : torch.Tensor, S : torch.Tensor,
 
 # Fake implementation for tracing and testing
 @query_state_fwd.register_fake
-def query_state_fwd_fake(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps):
+def query_state_fwd_fake(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state):
     b, n, c, h, d = Q.shape
     return torch.empty(b, n, c, h, d, device=Q.device, dtype=Q.dtype)
 
@@ -64,7 +65,6 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, 
         rowmax = None
     if zero_initial_state:
         S[:, 0] = 0
-    eps = 1e-6
     return dict(
         Q=Q, 
         S=S, 
@@ -73,7 +73,6 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, 
         deg=deg, 
         stabilizer=stabilizer, 
         zero_initial_state=zero_initial_state, 
-        eps=eps
     )
 
 ## TUTORIAL ##

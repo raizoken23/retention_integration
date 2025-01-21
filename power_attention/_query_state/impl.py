@@ -15,8 +15,7 @@ from power_attention._utils import compute_expanded_dim
 def query_state(Q : torch.Tensor, S : torch.Tensor,
                 Y : Optional[torch.Tensor],
                 rowmax : Optional[torch.Tensor],
-                deg : int, stabilizer : Optional[float], zero_initial_state : bool,
-                eps : float, deterministic : bool) -> torch.Tensor:
+                deg : int, stabilizer : Optional[float], zero_initial_state : bool) -> torch.Tensor:
     """Compute query state forward pass.
     
     Input shapes:
@@ -27,8 +26,6 @@ def query_state(Q : torch.Tensor, S : torch.Tensor,
         deg: int - Power attention degree
         stabilizer: Optional[float] - Stabilization factor, defaults to state_dim for fp16 and 1.0 otherwise
         zero_initial_state: bool - Whether the initial state is zero
-        eps: float - Small constant for numerical stability
-        deterministic: bool - Whether to accumulate dQ deterministically
 
     Output shapes:
         O: [batch, num_chunks, chunk_size, head, dim] - Output tensor
@@ -42,15 +39,15 @@ def query_state(Q : torch.Tensor, S : torch.Tensor,
     b, n, c, h, d = Q.shape
     if stabilizer is None:
         stabilizer = 1.
-    O = query_state_fwd(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps)
+    O = query_state_fwd(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state)
     return O
 @query_state.register_fake
-def query_state_fake(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps, deterministic):
+def query_state_fake(Q, S, Y, rowmax, deg, stabilizer, zero_initial_state):
     b, n, c, h, d = Q.shape
     return torch.empty(b, n, c, h, d, device=Q.device, dtype=Q.dtype)
 # Autograd setup
 def query_state_setup(ctx, inputs, output):
-    Q, S, Y, rowmax, deg, stabilizer, zero_initial_state, eps, deterministic = inputs
+    Q, S, Y, rowmax, deg, stabilizer, zero_initial_state = inputs
     b, n, c, h, d = Q.shape
     if stabilizer is None:
         stabilizer = 1.
@@ -58,23 +55,22 @@ def query_state_setup(ctx, inputs, output):
     ctx.deg = deg
     ctx.stabilizer = stabilizer
     ctx.fused = Y is not None
-    ctx.deterministic = deterministic
     ctx.zero_initial_state = zero_initial_state
 def query_state_backward(ctx, dO):
     Q, S, rowmax = ctx.saved_tensors
-    dQ, dS, dY_attn = query_state_bwd(Q, S, dO, rowmax, ctx.deg, ctx.stabilizer, ctx.zero_initial_state, ctx.deterministic)
+    dQ, dS, dY_attn = query_state_bwd(Q, S, dO, rowmax, ctx.deg, ctx.stabilizer, ctx.zero_initial_state)
     if ctx.fused:
         dY = dY_attn
     else:
         dY = None
-    return dQ, dS, dY, None, None, None, None, None, None
+    return dQ, dS, dY, None, None, None, None
 # Register autograd
 torch.library.register_autograd(
     "power_attention::query_state", query_state_backward, setup_context=query_state_setup
 )
 
 # Useful function to create sample inputs
-def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, device='cuda', requires_grad=False, seed=42, deterministic=True, zero_initial_state=False, stabilizer=None, q_std=1.0, S_std=1.0, Y_std=1.0, rowmax_std=1.0):
+def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, device='cuda', requires_grad=False, seed=42, zero_initial_state=False, stabilizer=None, q_std=1.0, S_std=1.0, Y_std=1.0, rowmax_std=1.0):
     torch.manual_seed(seed)
     deg = 2
     D = compute_expanded_dim(d, deg)
@@ -86,24 +82,22 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, fused=False, 
     else:
         Y = None
         rowmax = None
-    eps = 1e-7
     if zero_initial_state:
         S[:, 0] = 0
     if requires_grad:
         Q, S, Y = tree_map(
             lambda x: x.requires_grad_(True) if x is not None else None, (Q, S, Y))
-    return dict(Q=Q, S=S, Y=Y, rowmax=rowmax, deg=deg, stabilizer=stabilizer, zero_initial_state=zero_initial_state, eps=eps, deterministic=deterministic)
+    return dict(Q=Q, S=S, Y=Y, rowmax=rowmax, deg=deg, stabilizer=stabilizer, zero_initial_state=zero_initial_state)
 
 ## TUTORIAL ##
 if __name__ == '__main__':
-    from perf._timing import get_compiled_versions, estimate_runtime
     from perf._timing import report_fwd_bwd
 
     # Hyperparameters
     b, n, c, h, d = (8, 8, 128, 16, 64)
     dtype = torch.float16
     # Create inputs
-    inputs = create_inputs(b, n, c, h, d, dtype, 'cuda', requires_grad=True, deterministic=False)
+    inputs = create_inputs(b, n, c, h, d, dtype, 'cuda', requires_grad=True)
 
     # Benchmark
     print(f"Benchmarking query state \n {b=} {n=} {c=} {h=} {d=} {dtype}")

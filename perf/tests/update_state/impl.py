@@ -62,7 +62,6 @@ def test_update_state_backward(kw):
     with torch.autograd.enable_grad():
         outputs = update_state(**inputs)
         torch.autograd.backward(outputs, torch.ones_like(outputs))
-    D = compute_expanded_dim(kw['d'], inputs['deg'])
     check_tensor_property_pairs(
         (inputs['K'].grad, ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device'])),
         (inputs['V'].grad, ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device']))
@@ -98,7 +97,7 @@ from power_attention._update_state.reference import (
 param_ranges_ref = {
     'b': [2],
     'n': [8, 32], 
-    'c': [128],
+    'c': [128, 1024],
     'h': [4],
     'd': [32, 64],
     'dtype': [torch.float16, torch.bfloat16],
@@ -126,6 +125,18 @@ def test_update_state_matches_reference(kw):
     test_inputs = create_inputs_impl(**kw)
 
     check_fn_forwards_match(
+        ref_fn=update_state_reference,
+        gold_inputs=gold_inputs,
+        test_fn=update_state,
+        test_inputs=test_inputs,
+        rtol=2.
+    )
+
+@pytest.mark.parametrize("kw", REF_TEST_CASES, ids=id_fn)
+def test_update_state_grad_matches_reference(kw):
+    gold_inputs = create_inputs_impl(**(kw | {'dtype': torch.float32}), requires_grad=True)
+    test_inputs = create_inputs_impl(**kw, requires_grad=True)
+    check_fn_backwards_match(
         ref_fn=update_state_reference,
         gold_inputs=gold_inputs,
         test_fn=update_state,
