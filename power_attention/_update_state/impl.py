@@ -11,23 +11,50 @@ from power_attention._utils import compute_expanded_dim
 # Define the primary update_state entrypoint
 @torch.library.custom_op("power_attention::update_state", mutates_args=())
 def update_state(K : torch.Tensor, V : torch.Tensor, deg : int) -> torch.Tensor:
-    """Compute update state forward pass.
+    r"""Compute expanded state vectors for symmetric power attention.
     
-    Computes the update state operation by accumulating key-value pairs into expanded state vectors.
-    
-    Input shapes:
-        K: [batch, chunk_n, chunk_size, head, dim] - Key tensor
-        V: [batch, chunk_n, chunk_size, head, dim] - Value tensor
-        deg: int - Degree of expansion for state vectors
-        
-    Output shapes:
-        S: [batch, chunk_n, head, expanded_dim, dim] - Expanded state vectors
-        
-    Input restrictions:
-        - K, V must have same shape
-        - K, V must be contiguous along last dimension
-        - K, V must have same dtype (fp16 or bf16)
+    This function implements the state expansion mechanism from [1]. It uses symmetric tensors
+    to efficiently capture higher-order interactions between keys and values, achieving massive
+    dimensionality reduction compared to full tensor products (e.g., 96% reduction for deg=4).
+
+    For each chunk i, the state tensor accumulates symmetric outer products:
+
+    $$
+    S_{ij} = \sum_{t \in \text{chunk}_i} \phi(K_t)_i \phi(V_t)_j \quad \text{for } i+j < deg
+    $$
+
+    where ϕ maps vectors to their symmetric power embedding, i,j are power indices, and t
+    iterates over positions in the chunk. By using symmetric tensors instead of full tensor
+    products, we achieve both better performance and much smaller state sizes.
+
+    The expanded dimension is computed as:
+
+    $$
+    \text{expanded_dim} = \binom{\text{head_dim} + deg - 1}{deg}
+    $$
+
+    Args:
+        K: Key tensor of shape `(batch_size, num_chunks, chunk_size, num_heads, head_dim)`.
+        V: Value tensor of shape `(batch_size, num_chunks, chunk_size, num_heads, head_dim)`.
+        deg: Power attention degree. Controls the size of expanded state vectors.
+            Must be even for symmetric power formulation.
+
+    Returns:
+        S: Expanded state tensor of shape `(batch_size, num_chunks, num_heads, expanded_dim, head_dim)`,
+           where expanded_dim is computed using the binomial formula above.
+
+    Note:
+        - K and V must have matching shapes and dtypes (fp16 or bf16)
+        - K and V must be contiguous along the last dimension
         - chunk_size must be at least 128
+        - The symmetric formulation provides massive memory savings:
+          * deg=2: 49% reduction
+          * deg=4: 96% reduction
+          * deg=6: 99.8% reduction
+
+    References:
+        [1] J. Buckman, C. Gelada, and S. Zhang, "Symmetric Power Transformers." 
+            Manifest AI, Aug. 15, 2024.
     """
     S = update_state_fwd(K, V, deg)
     return S

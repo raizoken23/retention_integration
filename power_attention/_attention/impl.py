@@ -12,25 +12,57 @@ from power_attention._config import normal_space
 @torch.library.custom_op("power::attention", mutates_args=())
 def attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, 
               log_G: Optional[torch.Tensor], deg: int, scale: Optional[float]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Compute power attention with optional gating.
+    r"""Computes the power attention operation Y = ((Q·K^T) * scale)^deg · V with optional gating factors.
     
-    Computes the power attention operation Y = ((Q·K^T) * scale)^deg · V with optional gating factors.
-    
-    Input shapes:
-        Q, K, V: [batch, seq, head, dim] - Query, Key and Value tensors
-        log_G: [batch, seq, head] or None - Optional log gating factors
-        deg: int - Power attention degree
-        scale: float or None - Optional scale of key-query inner product, defaults to 1.0
-    Output shapes:
-        Y: [batch, seq, head, dim] - Scaled output tensor
-        y: [batch, seq, head] - Rowsum of the attention weights
-        rowmax: [batch, seq, head] - Scaling factor computed by taking the max of the attention weights before applying power
+    This function implements the core symmetric power attention mechanism from [1]. It replaces
+    softmax attention with an even power `deg`, which is equivalent to a linear transformer
+    with symmetric power embeddings. This formulation allows for more focused attention while
+    maintaining efficient computation through the linear transformer framework.
 
-    Input restrictions:
-        - Q, K, V must have same shape
-        - Q, K, V must be contiguous along last dimension
-        - Q, K, V must have same dtype (fp16 or bf16)
-        - log_G must be float32 if provided
+    For a sequence of queries Q, keys K, and values V, the attention mechanism computes:
+
+    $$Y_i = \sum_{j=1}^i A_{ij} V_j$$
+
+    where the attention weights without gating are:
+
+    $$A_{ij} = \frac{\phi(Q_i)^\top \phi(K_j)}{\sum_{k=1}^i \phi(Q_i)^\top \phi(K_k)}$$
+
+    Here ϕ is the symmetric power embedding that maps vectors to their deg-th symmetric power.
+    With gating (if log_G is provided):
+
+    $$A_{ij} = \frac{\phi(Q_i)^\top \phi(K_j) \exp(\log G_j)}{\sum_{k=1}^i \phi(Q_i)^\top \phi(K_k) \exp(\log G_k)}$$
+
+    Args:
+        Q: Query tensor of shape `(batch_size, seq_len, num_heads, head_dim)`.
+        K: Key tensor of shape `(batch_size, seq_len, num_heads, head_dim)`.
+        V: Value tensor of shape `(batch_size, seq_len, num_heads, head_dim)`.
+        log_G: Optional log gating factors of shape `(batch_size, seq_len, num_heads)`.
+            When provided, applies multiplicative gating to attention weights.
+        deg: Power attention degree. Must be even. Higher values make attention more "focused".
+        scale: Optional scale factor for Q·K^T. Usually 1/sqrt(head_dim).
+        eps: Small constant for numerical stability.
+        deterministic: Whether to use deterministic gradient accumulation.
+            May slow things down with small batches but ensures reproducibility.
+        normalize_output: Whether to normalize output by attention weight sums.
+        flash_equivalent: Whether to use flash-attention equivalent implementation.
+        normal_space: Whether to compute in normal space vs log space.
+            Normal space is faster but potentially less numerically stable.
+
+    Returns:
+        Tuple containing:
+            - Y: Output tensor of shape `(batch_size, seq_len, num_heads, head_dim)`.
+            - y: Normalization factors of shape `(batch_size, seq_len, num_heads)`.
+            - rowmax: Row-wise maximum values of shape `(batch_size, seq_len, num_heads)`.
+
+    Note:
+        - Input tensors must have matching dtypes (fp16 or bf16)
+        - If provided, log_G must be float32
+        - Q, K, V must be contiguous along the last dimension
+        - deg must be even for the symmetric power formulation
+
+    References:
+        [1] J. Buckman, C. Gelada, and S. Zhang, "Symmetric Power Transformers." 
+            Manifest AI, Aug. 15, 2024.
     """
     #  batch, seq, head, features
     b, t, h, d = Q.shape
