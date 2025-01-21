@@ -15,8 +15,7 @@ from power_attention._utils import compute_expanded_dim
 def query_state(Q : torch.Tensor, S : torch.Tensor,
                 Y : Optional[torch.Tensor],
                 rowmax : Optional[torch.Tensor],
-                deg : int, stabilizer : Optional[float], zero_initial_state : bool,
-                eps : float, deterministic : bool) -> torch.Tensor:
+                deg : int, stabilizer : Optional[float], zero_initial_state : bool) -> torch.Tensor:
     r"""Compute query interaction with expanded state vectors.
 
     This function implements the query-state interaction from [1]. It computes how queries
@@ -49,8 +48,6 @@ def query_state(Q : torch.Tensor, S : torch.Tensor,
         stabilizer: Optional stabilization factor. Defaults to state_dim for fp16, 1.0 otherwise.
             Helps prevent overflow in symmetric power computation.
         zero_initial_state: Whether the initial state should be treated as zero.
-        eps: Small constant for numerical stability.
-        deterministic: Whether to use deterministic gradient accumulation.
 
     Returns:
         O: Output tensor of shape `(batch_size, num_chunks, chunk_size, num_heads, head_dim)`.
