@@ -235,10 +235,7 @@ class PowerFullFactory:
 power_full_reference = PowerFullFactory.make_power_full(UpdateStateImpl.REFERENCE, QueryStateImpl.REFERENCE, DiscumsumImpl.REFERENCE, AttentionImpl.REFERENCE)
 
 power_full = PowerFullFactory.make_power_full(UpdateStateImpl.CUTLASS, QueryStateImpl.CUTLASS, DiscumsumImpl.CUTLASS, AttentionImpl.CUTLASS)
-r"""
-Since this is a factory-generated function, the actual signature is:
-
-**`power_full(Q, K, V, log_G=None, initial_state=None, deg=2, scale=None, chunk_size=None)`**
+r"""**`power_full(Q, K, V, log_G=None, initial_state=None, deg=2, scale=None, chunk_size=None)`**
 
 Compute symmetric power attention with optional chunking.
 
