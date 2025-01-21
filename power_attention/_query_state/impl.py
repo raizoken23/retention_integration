@@ -15,26 +15,56 @@ from power_attention._utils import compute_expanded_dim
 def query_state(Q : torch.Tensor, S : torch.Tensor,
                 Y : Optional[torch.Tensor],
                 rowmax : Optional[torch.Tensor],
-                deg : int, stabilizer : Optional[float], zero_initial_state : bool) -> torch.Tensor:
-    """Compute query state forward pass.
-    
-    Input shapes:
-        Q: [batch, num_chunks, chunk_size, head, dim] - Query tensor
-        S: [batch, num_chunks, head, state_dim, dim] - State tensor
-        Y: Optional[batch, num_chunks, chunk_size, head, dim] - Optional output tensor
-        rowmax: Optional[batch, num_chunks, chunk_size, head] - Optional rowmax tensor
-        deg: int - Power attention degree
-        stabilizer: Optional[float] - Stabilization factor, defaults to state_dim for fp16 and 1.0 otherwise
-        zero_initial_state: bool - Whether the initial state is zero
+                deg : int, stabilizer : Optional[float], zero_initial_state : bool,
+                eps : float, deterministic : bool) -> torch.Tensor:
+    r"""Compute query interaction with expanded state vectors.
 
-    Output shapes:
-        O: [batch, num_chunks, chunk_size, head, dim] - Output tensor
+    This function implements the query-state interaction from [1]. It computes how queries
+    interact with the expanded state vectors using symmetric power embeddings, which provide
+    an efficient way to compute higher-order attention patterns.
 
-    Input restrictions:
-        - Q contiguous along the last dimension
-        - Q feature dimension must be 32 or 64
-        - fp16 or bf16 only
+    For each query $Q_t$, we compute:
+
+    $$Y_t = \phi(Q_t) \cdot S_{<t}$$
+
+    where $\phi$ maps $Q_t$ to its symmetric power embedding of degree $deg$. This is equivalent to
+    computing attention scores with keys and values from previous chunks, but using the
+    compressed state representation for efficiency.
+
+    The computation can be numerically unstable in fp16, so we provide two stabilization
+    mechanisms:
+
+    1. A stabilizer factor that scales the symmetric power embedding
+    2. Optional output scaling using Y and rowmax from the attention computation
+
+    Args:
+        Q: Query tensor of shape `(batch_size, num_chunks, chunk_size, num_heads, head_dim)`.
+        S: State tensor of shape `(batch_size, num_chunks, num_heads, expanded_dim, head_dim)`.
+           Contains expanded state vectors from update_state.
+        Y: Optional output tensor of shape `(batch_size, num_chunks, chunk_size, num_heads, head_dim)`.
+           Used for output scaling when provided.
+        rowmax: Optional scaling tensor of shape `(batch_size, num_chunks, chunk_size, num_heads)`.
+           Used for numerical stability when provided.
+        deg: Power attention degree. Must be even for symmetric power formulation.
+        stabilizer: Optional stabilization factor. Defaults to state_dim for fp16, 1.0 otherwise.
+            Helps prevent overflow in symmetric power computation.
+        zero_initial_state: Whether the initial state should be treated as zero.
+        eps: Small constant for numerical stability.
+        deterministic: Whether to use deterministic gradient accumulation.
+
+    Returns:
+        O: Output tensor of shape `(batch_size, num_chunks, chunk_size, num_heads, head_dim)`.
+
+    Note:
+        - Q must be contiguous along the last dimension
+        - Feature dimension must be 32 or 64
+        - Inputs must be fp16 or bf16
         - chunk_size must be at least 128 and a multiple of 16
+        - Stabilization is particularly important for deg > 2
+
+    References:
+        [1] J. Buckman, C. Gelada, and S. Zhang, "Symmetric Power Transformers." 
+            Manifest AI, Aug. 15, 2024.
     """
     b, n, c, h, d = Q.shape
     if stabilizer is None:
