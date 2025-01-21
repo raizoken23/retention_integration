@@ -1,7 +1,18 @@
 # Get version from pyproject.toml
 VERSION := $(shell python scripts/get_version.py)
 PACKAGE_NAME := power-attention
-PYTHON := python3
+
+# Find Python 3.11+
+PYTHON := $(shell for py in python3.12 python3.11 python3 python; do \
+    if command -v $$py >/dev/null && $$py --version 2>&1 | grep -q "Python 3.1[1-9]"; then \
+        echo $$py; \
+        break; \
+    fi \
+done)
+
+ifeq ($(PYTHON),)
+    $(error Python 3.11 or higher is required. Please install Python 3.11+)
+endif
 
 # Allow overriding venv path through environment variable, default to .venv
 VENV_DIR ?= $(if $(POWER_ATTENTION_VENV_PATH),$(POWER_ATTENTION_VENV_PATH),.venv)
@@ -16,6 +27,7 @@ dev: venv
 	CC=gcc CXX=g++ $(PIP) install -e .
 
 venv:
+	@echo "Creating virtual environment using $(PYTHON) ($(shell $(PYTHON) --version 2>&1))"
 	$(PYTHON) -m venv $(VENV_DIR)
 	$(PIP) install --upgrade pip
 
