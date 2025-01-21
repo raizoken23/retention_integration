@@ -1,0 +1,39 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: jbox
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Create virtual environment
+      run: |
+        python3.11 -m venv .venv
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+
+    - name: Install package with dev dependencies
+      run: |
+        source .venv/bin/activate
+        pip install -e .[dev]
+
+    - name: Run tests
+      run: |
+        source .venv/bin/activate
+        pytest perf/tests/
+
+    - name: Check benchmark results exist
+      run: |
+        SHA=$(git rev-parse HEAD)
+        if ! ls reports/*${SHA}*.yaml 1> /dev/null 2>&1; then
+          echo "::error::No benchmark results found for current commit ${SHA}."
+          echo "::error::Please run 'python3 -m perf.create_report' locally before pushing."
+          exit 1
+        fi
