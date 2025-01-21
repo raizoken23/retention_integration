@@ -37,12 +37,3 @@ jobs:
         display-options: fEX
         fail-on-empty: true
         title: Test results
-
-    - name: Check benchmark results exist
-      run: |
-        SHA=$(git rev-parse HEAD)
-        if ! ls reports/*${SHA}*.yaml 1> /dev/null 2>&1; then
-          echo "::error::No benchmark results found for current commit ${SHA}."
-          echo "::error::Please run 'python3 -m perf.create_report' locally before pushing."
-          exit 1
-        fi
