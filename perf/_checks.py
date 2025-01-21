@@ -305,5 +305,8 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
     sanity_check_tensors([gold_grads, ref_grads, test_grads])
     ref_err = compare(gold_grads, ref_grads)
     test_err = compare(gold_grads, test_grads)
-    check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
+    try:
+        check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
+    except Exception as e:
+        import pdb; pdb.set_trace()
     torch.cuda.empty_cache()

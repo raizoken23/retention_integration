@@ -116,6 +116,6 @@ def _query_state(Q, S, attn_Y, rowmax, deg, scale, zero_initial_state):
     # Q: [b,n,c,h,D]
     # S: [b,n,h,D,d]
     # Output: [b,n,c,h,d]
-    correction = scale * torch.exp(-rowmax)
+    correction = torch.exp(-rowmax)
     qs_Y = torch.matmul((Q * correction.unsqueeze(-1)).to(Q.dtype).transpose(2, 3), S).transpose(2, 3)  # [b,n,c,h,d]
-    return scale * attn_Y + qs_Y
+    return attn_Y + qs_Y

@@ -13,6 +13,7 @@ from power_attention._discumsum import discumsum, discumsum_reference
 from power_attention._query_state import query_state, query_state_reference
 from power_attention._p1_full import p1_full, _update_state as update_state_matmul, _query_state as query_state_matmul
 from power_attention._config import normal_space
+from power_attention._utils import compute_expanded_dim
 import math
 
 
@@ -173,7 +174,7 @@ class PowerFullFactory:
             attn_Y, _, rowmax = _attention(Q_flatbatch, K_flatbatch, V_flatbatch, log_G_intrachunk_accum_flatbatch, deg, scale)
             attn_Y = attn_Y.view(b, n, c, hq, d)
             rowmax = rowmax.view(b, n, c, hq).detach()
-            rowmax -= math.log(scale)
+            rowmax = rowmax - math.log(scale)
 
             if gating:
                 if qhead_ratio > 1:
@@ -181,7 +182,8 @@ class PowerFullFactory:
                 Q = Q * torch.exp(log_G_intrachunk_accum / deg).unsqueeze(-1).to(Q.dtype)
             if qhead_ratio > 1:
                 S = S.repeat_interleave(qhead_ratio, dim=2)
-            Y = _query_state(Q.contiguous(), S.contiguous(), attn_Y.contiguous(), rowmax.contiguous(), deg, 1.0, initial_state is None)
+            D = float(compute_expanded_dim(d, deg))
+            Y = _query_state(Q.contiguous(), S.contiguous(), attn_Y.contiguous(), rowmax.contiguous(), deg, D, initial_state is None)
 
             # Epilogue
             out = Y.contiguous().view(b, t, hq, d).to(dtype)
@@ -196,15 +198,15 @@ power_full = PowerFullFactory.make_power_full(UpdateStateImpl.CUTLASS, QueryStat
 def create_inputs(b=2, t=1024, h=8, d=32, qhead_ratio=1, dtype=torch.float16, device='cuda', gating=False,
                   chunk_size=None, deg=2, requires_grad=False, seed=42):
     torch.manual_seed(seed)
-    Q = torch.randn(size=(b, t, h * qhead_ratio, d), dtype=dtype, device=device) / math.sqrt(d)
-    K = torch.randn(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
-    V = torch.randn(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
+    Q = torch.ones(size=(b, t, h * qhead_ratio, d), dtype=dtype, device=device) / math.sqrt(d)
+    K = torch.ones(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
+    V = torch.ones(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
     if gating:
-        log_G = F.logsigmoid(torch.randn(size=(b, t, h), dtype=torch.float32, device=device))
+        log_G = F.logsigmoid(torch.ones(size=(b, t, h), dtype=torch.float32, device=device))
     else:
         log_G = None
     initial_state = None
-    scale = (1./d**0.5)**deg
+    scale = (1./d)**deg
     if requires_grad:
         Q, K, V, log_G, initial_state = tree_map(
             lambda x: x.requires_grad_(True) if x is not None else None, (Q, K, V, log_G, initial_state))

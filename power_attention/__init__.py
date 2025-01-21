@@ -1,4 +1,4 @@
-__version__ = '0.9.13'
+__version__ = '0.9.16'
 
 from power_attention._attention import attention
 from power_attention._update_state import update_state

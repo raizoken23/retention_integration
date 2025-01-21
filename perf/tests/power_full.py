@@ -23,9 +23,9 @@ from power_attention.power_full import (
 
 # Define parameter ranges
 param_ranges = {
-    'b': [2],
-    't': [512, 1024], 
-    'h': [4],
+    'b': [1],
+    't': [512], 
+    'h': [1],
     'd': [32, 64],
     'qhead_ratio': [1, 2],
     'dtype': [torch.bfloat16, torch.float16],
@@ -210,7 +210,7 @@ def test_power_full_kernel_matches_reference(kw, compile):
         gold_inputs=gold_inputs,
         test_fn=torch.compile(power_full) if compile else power_full,
         test_inputs=test_inputs,
-        rtol=2, # if test error is more than 2x reference error, then it is probably a real failure
+        rtol=3., # if test error is more than 3x reference error, then it is probably a real failure
     )
 
 

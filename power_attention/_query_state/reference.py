@@ -39,12 +39,14 @@ class QueryStateReference(torch.autograd.Function):
         dtype = Y.dtype
         scale_qs = torch.tensor(1, dtype=Y.dtype, device=Y.device) if stabilizer is None else 1 / stabilizer
         scale_attn = torch.exp(-rowmax)
-        qs_factor = scale_attn / scale_qs
+        min_scale = torch.min(scale_qs, scale_attn)
+        qs_factor = min_scale / scale_qs
+        attn_factor = min_scale / scale_attn
         if not zero_initial_state:
-            Y = att_Y + Y * qs_factor.unsqueeze(-1)
+            Y = att_Y * attn_factor.unsqueeze(-1) + Y * qs_factor.unsqueeze(-1)
         else:
             Y[:, 0:1] = att_Y.narrow(1, 0, 1)
-            Y[:, 1:] = att_Y.narrow(1, 1, n - 1) + Y.narrow(1, 1, n - 1) * qs_factor.narrow(1, 1, n - 1).unsqueeze(-1)
+            Y[:, 1:] = att_Y.narrow(1, 1, n - 1) * attn_factor.narrow(1, 1, n - 1).unsqueeze(-1) + Y.narrow(1, 1, n - 1) * qs_factor.narrow(1, 1, n - 1).unsqueeze(-1)
         return Y.to(dtype)
     
     @staticmethod
@@ -54,12 +56,16 @@ class QueryStateReference(torch.autograd.Function):
         b, n, c, h, d = dY.shape
         scale_qs = torch.tensor(1, dtype=dY.dtype, device=dY.device) if stabilizer is None else 1 / stabilizer
         scale_attn = torch.exp(-rowmax)
-        qs_factor = scale_attn / scale_qs
+        min_scale = torch.min(scale_qs, scale_attn)
+        qs_factor = min_scale / scale_qs
+        attn_factor = min_scale / scale_attn
         if not zero_initial_state:
-            dY_attn = dY.clone()
+            dY_attn = (dY.clone() * attn_factor.unsqueeze(-1)).to(dY.dtype)
             dY_qs = (dY * qs_factor.unsqueeze(-1)).to(dY.dtype)
         else:
-            dY_attn = dY.clone()
+            dY_attn = torch.empty_like(dY)
+            dY_attn[:, 0] = dY[:, 0].clone()
+            dY_attn[:, 1:] = (dY[:, 1:].clone() * attn_factor.narrow(1, 1, n - 1).unsqueeze(-1))
             dY_qs = torch.empty_like(dY)
             dY_qs[:, 0] = 0
             dY_qs[:, 1:] = (dY[:, 1:].clone() * qs_factor.narrow(1, 1, n - 1).unsqueeze(-1))
