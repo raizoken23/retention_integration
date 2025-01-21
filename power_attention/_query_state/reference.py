@@ -1,10 +1,6 @@
-from functools import partial
-import os
-import math
 import torch
-import torch.nn.functional as F
 from einops import rearrange
-from power_attention._utils import dummify, print_tensor
+from power_attention._utils import dummify
 
 InnerBlock = 16
 OuterBlock = 1

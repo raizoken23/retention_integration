@@ -5,9 +5,10 @@
 import torch
 import torch.nn.functional as F
 from torch.utils._pytree import tree_map
-from typing import Optional, Tuple
+from typing import Optional
 from power_attention._query_state.fwd import query_state_fwd
-from power_attention._query_state.bwd import ExpandedDim as compute_expanded_dim, query_state_bwd
+from power_attention._query_state.bwd import query_state_bwd
+from power_attention._utils import compute_expanded_dim
 
 # Define the primary query_state entrypoint
 @torch.library.custom_op("power_attention::query_state", mutates_args=())

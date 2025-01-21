@@ -15,9 +15,10 @@ from perf._checks import (
 from power_attention._query_state.impl import (
     query_state,
     query_state_fake,
-    create_inputs as create_inputs_impl,
-    compute_expanded_dim
+    create_inputs as create_inputs_impl
 )
+from power_attention._utils import compute_expanded_dim
+
 param_ranges_impl = {
     'b': [4],
     'n': [4, 8], 
@@ -48,7 +49,7 @@ def test_query_state_create_inputs(kw):
         check_tensor_property_pairs(
             (inputs['Q'], ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device'])),
             (inputs['S'], ((kw['b'], kw['n'], kw['h'], D, kw['d']), kw['dtype'], kw['device'])),
-            (inputs['Y'], ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device']))
+            (inputs['Y'], ((kw['b'], kw['n'], kw['c'], kw['h'], kw['d']), kw['dtype'], kw['device'])),
             (inputs['rowmax'], ((kw['b'], kw['n'], kw['c'], kw['h']), torch.float32, kw['device'])))
     else:
         check_tensor_property_pairs(

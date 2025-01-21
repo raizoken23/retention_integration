@@ -3,14 +3,9 @@
 ## IMPLEMENTATION ##
 import torch
 from typing import Optional, Tuple
-from power_attention_cuda import (
-    query_states_bwd as query_states_bwd_cuda,
-    InnerBlock_TD as InnerBlock,
-    OuterBlock_TD as OuterBlock
-)
+from power_attention_cuda import query_states_bwd as query_states_bwd_cuda
 
-def ExpandedDim(head_size, deg):
-    return ((InnerBlock // OuterBlock + head_size // OuterBlock) * (head_size // InnerBlock) // 2) * (InnerBlock * OuterBlock)
+from power_attention._utils import compute_expanded_dim
 
 # Define a traceable inner backward pass
 @torch.library.custom_op("power_attention::query_state_bwd", mutates_args=(), device_types='cuda')
@@ -60,7 +55,7 @@ def query_state_bwd_fake(Q, S, dO, rowmax, deg, stabilizer, zero_initial_state, 
 def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, device='cuda', seed=42, deterministic=True, fused=False, zero_initial_state=False, stabilizer=None):
     torch.manual_seed(seed)
     deg = 2
-    D = ExpandedDim(d, deg)
+    D = compute_expanded_dim(d, deg)
     Q = torch.randn(size=(b, n, c, h, d), dtype=dtype, device=device) / d**.25
     S = torch.randn(size=(b, n, h, D, d), dtype=dtype, device=device) 
     dO = torch.randn(size=(b, n, c, h, d), dtype=dtype, device=device)

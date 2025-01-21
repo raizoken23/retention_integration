@@ -3,15 +3,10 @@
 
 ## IMPLEMENTATION ##
 import torch
-import torch.nn.functional as F
-from functools import partial
-from einops import rearrange
 from torch.utils._pytree import tree_map
-from types import NoneType
-from typing import Tuple
-from power_attention._update_state.fwd import ExpandedDim as compute_expanded_dim, update_state_fwd
+from power_attention._update_state.fwd import update_state_fwd
 from power_attention._update_state.bwd import update_state_bwd
-
+from power_attention._utils import compute_expanded_dim
 
 # Define the primary update_state entrypoint
 @torch.library.custom_op("power_attention::update_state", mutates_args=())
@@ -64,7 +59,7 @@ def create_inputs(b=2, n=4, c=128, h=8, d=32, dtype=torch.float16, device='cuda'
     V = torch.randn(size=(b, n, c, h, d), dtype=dtype, device=device) / d**.25
     if requires_grad:
         K, V = tree_map(lambda x: x.requires_grad_(True), (K, V))
-    return K, V, 2
+    return dict(K=K, V=V, deg=2)
 
 ## TUTORIAL ##
 if __name__ == '__main__':
@@ -74,9 +69,9 @@ if __name__ == '__main__':
     b, n, c, h, d = (8, 8, 128, 16, 64)
     dtype = torch.float16
     # Create inputs
-    K, V, deg = create_inputs(b, n, c, h, d, dtype, 'cuda', requires_grad=True)
+    inputs = create_inputs(b, n, c, h, d, dtype, 'cuda', requires_grad=True)
     
     print(f"Benchmarking chunk state \n {b=} {n=} {c=} {h=} {d=} {dtype=}")
 
     # benchmark
-    report_fwd_bwd(update_state, K, V, deg)
+    report_fwd_bwd(update_state, inputs['K'], inputs['V'], inputs['deg'])

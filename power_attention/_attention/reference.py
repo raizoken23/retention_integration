@@ -1,13 +1,5 @@
-import code
-from functools import partial
 import torch
 import torch.nn.functional as F
-from einops import rearrange
-from power_attention_cuda import attention_bwd, attention_fwd
-from torch.utils._pytree import tree_map
-from types import NoneType
-from typing import Optional, Tuple
-from power_attention._update_state import ExpandedDim
 from power_attention._utils import dummify
 from power_attention._attention.impl import attention
 
@@ -70,7 +62,6 @@ class AttentionReference(torch.autograd.Function):
         """
         device = Q.device
         b, t, h, d = Q.shape
-        D = ExpandedDim(d, deg)
         if isinstance(scale, float):
             scale = torch.tensor(scale, dtype=torch.float32, device=device)
 
@@ -79,7 +70,6 @@ class AttentionReference(torch.autograd.Function):
         Q, K, V = Q.transpose(1, 2), K.transpose(1, 2), V.transpose(1, 2) # [b, h, t, d]
         log_G = log_G.transpose(1, 2) if log_G is not None else None # [b, h, t]
         S = torch.matmul(Q, K.transpose(-1, -2))
-        mask = torch.tril(torch.full(S.shape[-2:], True, dtype=torch.bool, device=device))
         P, Z_rowmax = AttentionReference._softmax(S, scale, deg, log_G, ε, flash_equivalent, normal_space, Q.dtype, Q.device)
 
         y = P.sum(-1, dtype=torch.float32) # [b, h, t]
