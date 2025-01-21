@@ -1,7 +1,22 @@
 # Get version from pyproject.toml
 VERSION := $(shell python scripts/get_version.py)
 PACKAGE_NAME := power-attention
-PYTHON := python3
+
+# Get required Python version from pyproject.toml
+REQUIRED_PYTHON_VERSION := $(shell python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['requires-python'].replace('>=',''))")
+
+# Function to check Python version - store result in a single word
+define check_python_version
+$(shell command -v $(1) > /dev/null && $(1) -c "import sys; exit(0 if sys.version_info >= tuple(map(int, '$(REQUIRED_PYTHON_VERSION)'.split('.'))) else 1)" 2>/dev/null && echo "$(1)" || echo "")
+endef
+
+# Try to find a suitable Python interpreter
+PYTHON_CANDIDATES := python3.12 python3.11 python3 python
+PYTHON := $(strip $(firstword $(foreach py,$(PYTHON_CANDIDATES),$(call check_python_version,$(py)))))
+
+ifeq ($(PYTHON),)
+    $(error No Python $(REQUIRED_PYTHON_VERSION)+ interpreter found. Please install Python $(REQUIRED_PYTHON_VERSION) or higher)
+endif
 
 # Allow overriding venv path through environment variable, default to .venv
 VENV_DIR ?= $(if $(POWER_ATTENTION_VENV_PATH),$(POWER_ATTENTION_VENV_PATH),.venv)
@@ -16,6 +31,7 @@ dev: venv
 	CC=gcc CXX=g++ $(PIP) install -e .
 
 venv:
+	@echo "Creating virtual environment using $(PYTHON) ($(shell $(PYTHON) --version 2>&1))"
 	$(PYTHON) -m venv $(VENV_DIR)
 	$(PIP) install --upgrade pip
 
