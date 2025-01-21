@@ -23,9 +23,9 @@ from power_attention.power_full import (
 
 # Define parameter ranges
 param_ranges = {
-    'b': [1],
-    't': [512], 
-    'h': [1],
+    'b': [2],
+    't': [512, 1024], 
+    'h': [4],
     'd': [32, 64],
     'qhead_ratio': [1, 2],
     'dtype': [torch.bfloat16, torch.float16],
