@@ -25,4 +25,3 @@ matplotlib
 pymdown-extensions
 mkdocs
 mkdocstrings-python
-pytest-junit

@@ -289,7 +289,6 @@ dev_requires = [
     'pymdown-extensions',
     'mkdocs',
     'mkdocstrings-python',
-    'pytest-junit',
 ]
 
 setup(
