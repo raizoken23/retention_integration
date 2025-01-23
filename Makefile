@@ -1,28 +1,55 @@
 # Get version from pyproject.toml
 VERSION := $(shell python scripts/get_version.py)
 PACKAGE_NAME := power-attention
-# Find Python 3.11+
-PYTHON := $(shell for py in python3.12 python3.11 python3 python; do \
-    if command -v $$py >/dev/null && $$py --version 2>&1 | grep -q "Python 3.1[1-9]"; then \
-        echo $$py; \
-        break; \
-    fi \
-done)
 
-ifeq ($(PYTHON),)
-    $(error Python 3.11 or higher is required. Please install Python 3.11+)
-endif
+.PHONY: clean check-version check-test-version release release-test help deps-dev deps-benchmark deps-train kernel refresh
 
-.PHONY: clean check-version check-test-version release release-test help plot-regressions refresh-deps kernel
+PIP := pip
+PYTEST := pytest
+PYTHON := python
 
-# Clean and check
-clean:
-	rm -rf dist/ build/ *.egg-info/ *.so wheelhouse/
+define install_group_deps
+	$(PYTHON) -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["dependency-groups"]["$(1)"]))' | $(PIP) install -r /dev/stdin
+endef
+
+define install_deps
+	$(PYTHON) -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]))' | $(PIP) install -r /dev/stdin
+endef
+
+define install_group_deps
+	$(PYTHON) -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["dependency-groups"]["$(1)"]))' | $(PIP) install -r /dev/stdin
+endef
+
+define uninstall_deps
+	$(PYTHON) -c 'import tomllib; deps = tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]; [print(dep.split(">=")[0]) for dep in deps]' | xargs -n 1 $(PIP) uninstall -y	
+endef
 
 kernel:
 	@python setup.py build_ext --inplace
 
-refresh-deps:
+deps-dev:
+	$(call install_group_deps,dev)
+
+deps-benchmark:
+	$(call install_group_deps,benchmark)
+
+deps-train:
+	$(call install_group_deps,benchmark)
+
+refresh:
+	@echo "Uninstalling dependencies..."
+	$(call uninstall_deps)
+	@echo "Reinstalling dependencies..."
+	$(call install_deps)
+
+# Clean and check
+clean:
+	rm -rf dist/ build/ *.egg-info/ *.so wheelhouse/ $(VENV_DIR)/.deps_*
+
+kernel:
+	@python setup.py build_ext --inplace
+
+refresh-dev-deps:
 	@echo "Reinstalling development dependencies..."
 	@sh scripts/install_dev_deps.sh
 
@@ -59,10 +86,15 @@ plot-regressions:
 # Help
 help:
 	@echo "Available commands:"
-	@echo "  make clean         - Clean build artifacts"
-	@echo "  make release       - Release to PyPI (includes version check)"
-	@echo "  make release-test  - Release to TestPyPI"
-	@echo "  make check-version - Check version against PyPI"
+	@echo "  make kernel             - Build kernel and install it"
+	@echo "  make refresh            - Refresh required dependencies"
+	@echo "  make deps-dev           - Install dev dependencies"
+	@echo "  make deps-train         - Install dependencies for training"
+	@echo "  make deps-benchmark     - Install dependencies for benchmark"
+	@echo "  make clean              - Clean build artifacts"
+	@echo "  make release            - Release to PyPI (includes version check)"
+	@echo "  make release-test       - Release to TestPyPI"
+	@echo "  make check-version      - Check version against PyPI"
 	@echo "  make check-test-version - Check version against TestPyPI"
-	@echo "  make plot-regressions  - Generate interactive regression visualization"
+	@echo "  make plot-regressions   - Generate interactive regression visualization"
 	@echo "Current version: $(VERSION)" 

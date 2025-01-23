@@ -3,6 +3,8 @@ import torch
 
 from perf._precision import compare
 from perf._utils import clone_grads, clear_grads, same_device
+from perf._inspect import inspect_diff_details
+from perf._precision import get_violation_pct
 
 # General checks
 
@@ -239,7 +241,7 @@ def check_inputs_backwards_match(*, fn, inputs1, inputs2, atol=None, rtol=None):
     sanity_check_tensors([grads1, grads2])
     check_allclose(grads1, grads2, atol=atol, rtol=rtol)
 
-def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=None):
+def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0.):
     """Given two functions, check that they produce the same output for the same inputs.
 
     gold_inputs are high-precision inputs, the reference function is run with these inputs
@@ -263,9 +265,14 @@ def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=N
     sanity_check_tensors([gold_output, ref_output, test_output])
     ref_err = compare(gold_output, ref_output)
     test_err = compare(gold_output, test_output)
-    check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
+    try:
+        check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
+    except AssertionError as e:
+        violation_pct = get_violation_pct(gold_output, ref_output, test_output, tol=rtol, atol=atol)
+        msg = inspect_diff_details(gold_output, ref_output, test_output, tol=rtol, atol=atol) 
+        raise AssertionError(f"Precision failure: {e}\n{msg}\nViolation percentage: {violation_pct * 100:.2f}%")
 
-def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=None):
+def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0.):
     """Given two functions, check that they produce the same gradients for the same inputs.
 
     gold_inputs are high-precision inputs, the reference function is run with these inputs
@@ -305,5 +312,10 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
     sanity_check_tensors([gold_grads, ref_grads, test_grads])
     ref_err = compare(gold_grads, ref_grads)
     test_err = compare(gold_grads, test_grads)
-    check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
+    try:
+        check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
+    except AssertionError as e:
+        violation_pct = get_violation_pct(gold_grads, ref_grads, test_grads, tol=rtol, atol=atol)
+        msg = inspect_diff_details(gold_grads, ref_grads, test_grads, tol=rtol, atol=atol)
+        raise AssertionError(f"Precision failure: {e}\n{msg}\nViolation percentage: {violation_pct * 100:.2f}%")
     torch.cuda.empty_cache()

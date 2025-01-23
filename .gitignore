@@ -64,3 +64,6 @@ docs/_build/
 
 wheelhouse/
 train/out/
+
+# Migration scripts
+reports/migrate.py

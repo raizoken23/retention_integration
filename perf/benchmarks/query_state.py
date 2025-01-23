@@ -57,6 +57,7 @@ other_param_ranges = {
     'fused': [True, False],
     'scale': [1.0],
     'direction': ['fwd', 'bwd'],
+    'relative': [False],
 }
 PRECISION_TEST_CASES = [
     {**shape, **dict(zip(other_param_ranges.keys(), values))}
@@ -65,11 +66,12 @@ PRECISION_TEST_CASES = [
 ]
 
 @register_benchmark(param_configs=PRECISION_TEST_CASES, groups=['precision', 'query_state'])
-def query_state_precision(direction=None, **kw):
+def query_state_precision(direction=None, relative=False, **kw):
     """Measure precision of query_state implementation compared to fp32 reference.
     
     Args:
         direction: str. One of 'fwd' or 'bwd' to measure forward pass or backward pass precision
+        relative: bool. If True, return the relative error instead of the absolute error
         **kw: Keyword arguments passed to create_inputs() to configure the test case
             
     Returns:
@@ -78,7 +80,20 @@ def query_state_precision(direction=None, **kw):
             gradient (Q, S, and when fused=True, Y), containing the maximum absolute 
             difference between test and reference gradients.
     """
-    error = benchmark_precision(direction, query_state_reference, query_state, create_inputs, 
+    def fn_with_layernorm(fn):
+        def wrapper(**inputs):
+            o = fn(**inputs).float()
+            return (o - o.mean(-1, keepdim=True)) / o.std(-1, keepdim=True, correction=False)
+        return wrapper
+
+    # We wrap query_state inside a layernorm because the scale of the output for each
+    # token is different, and the scale of the first token is usually very large, which 
+    # has to do with the rowmax of the first token is usually very small, so it's scaled
+    # by exp(-rowmax), which is large. This caused the scale of numerical error to be
+    # different for each token, and thus hard to compare. The layernorm is purely here to
+    # normalize the scale of each token, without it, query_state should still match its 
+    # reference implementation.
+    error = benchmark_precision(direction, relative, fn_with_layernorm(query_state_reference), fn_with_layernorm(query_state), create_inputs, 
                                 kw | {'dtype': torch.float32}, # reference is fp32
                                 kw)
     if direction == 'fwd':
