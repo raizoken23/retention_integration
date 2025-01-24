@@ -21,7 +21,7 @@ import time
 import math
 import pickle
 from contextlib import nullcontext
-import tiktoken
+from datetime import timedelta
 
 import numpy as np
 import torch
@@ -33,7 +33,6 @@ from model import GPTConfig, GPT
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = 'out'
 disable_eval = False
 eval_interval = 100
 eval_slowdown_factor = 1.2
@@ -47,11 +46,11 @@ run_name = None
 disable_logging = False
 wandb_project = None
 # data
-data_dir = os.path.expanduser('~/mai_datasets/ngpt_owt')
+data_root = os.path.expanduser('~/mai_datasets')
+dataset = 'ngpt_owt'
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
 batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
-data_encoding = "bpe" # "bpe", "char", "bit"
 # model
 n_layer = 12
 n_head = 12
@@ -92,7 +91,7 @@ config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # various inits, derived attributes, I/O setup
 ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
 if ddp:
-    init_process_group(backend=backend)
+    init_process_group(backend=backend, timeout=timedelta(minutes=30))
     ddp_rank = int(os.environ['RANK'])
     ddp_local_rank = int(os.environ['LOCAL_RANK'])
     ddp_world_size = int(os.environ['WORLD_SIZE'])
@@ -102,8 +101,9 @@ if ddp:
     seed_offset = ddp_rank # each process gets a different seed
     # world_size number of processes will be training simultaneously, so we can scale
     # down the desired gradient accumulation iterations per process proportionally
-    assert gradient_accumulation_steps % ddp_world_size == 0
+    assert gradient_accumulation_steps % ddp_world_size == 0 
     gradient_accumulation_steps //= ddp_world_size
+    torch._dynamo.config.optimize_ddp = False
 else:
     # if not ddp, we are running on a single gpu, and one process
     master_process = True
@@ -112,7 +112,8 @@ else:
 tokens_per_iter = gradient_accumulation_steps * ddp_world_size * batch_size * block_size
 print(f"tokens per iteration will be: {tokens_per_iter:,}")
 
-if master_process:
+out_dir = f'out/{run_name}'
+if master_process and not disable_logging:
     os.makedirs(out_dir, exist_ok=True)
 torch.manual_seed(1337 + seed_offset)
 torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
@@ -122,26 +123,8 @@ device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.aut
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-# reencoding
-bpe_enc = tiktoken.get_encoding('gpt2')
-def reencode(seq):
-    if data_encoding == "bpe":
-        return seq
-    seq_text = bpe_enc.decode(seq)
-    char_enc_seq = [ord(c) for c in seq_text if ord(c) < 256]
-    if len(char_enc_seq) < len(seq):
-        char_enc_seq.extend([10] * (len(seq) - len(char_enc_seq))) # pad with newlines
-    else:
-        char_enc_seq = char_enc_seq[:len(seq)]
-    if data_encoding == "char":
-        return np.array(char_enc_seq, dtype=np.uint8)
-    binary_enc_seq = [int(b) for n in char_enc_seq[:len(seq)//8+1] for b in format(n, '08b')][:len(seq)]
-    if data_encoding == "bit":
-        return np.array(binary_enc_seq, dtype=np.bool_)
-    raise ValueError(f"Invalid data encoding: {data_encoding}")
-
-
 # poor man's data loader
+data_dir = os.path.join(data_root, dataset)
 def get_batch(split):
     # We recreate np.memmap every batch to avoid a memory leak, as per
     # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
@@ -150,7 +133,7 @@ def get_batch(split):
     else:
         data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
     ix = torch.randint(len(data) - (block_size+1), (batch_size,))
-    src = np.stack([reencode(data[i:i+block_size+1]) for i in ix]).astype(np.int64)
+    src = np.stack([data[i:i+block_size+1] for i in ix]).astype(np.int64)
     x = torch.from_numpy(src[:, :-1])
     y = torch.from_numpy(src[:,1:  ])
     if device_type == 'cuda':
@@ -173,12 +156,7 @@ if init_from == 'scratch':
     # init a new model from scratch
     print("Initializing a new model from scratch")
     # determine the vocab size we'll use for from-scratch training
-    if data_encoding == "bpe":
-        model_args['vocab_size'] = 50304
-    elif data_encoding == "char":
-        model_args['vocab_size'] = 256
-    elif data_encoding == "bit":
-        model_args['vocab_size'] = 2
+    model_args['vocab_size'] = 50304
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
 elif init_from == 'resume':
@@ -219,9 +197,9 @@ checkpoint = None # free up memory
 
 # compile the model
 if compile:
-    print("compiling the model... (takes a ~minute)")
-    unoptimized_model = model
+    print("compiling the model...(takes a ~minute)", flush=True, end='')
     model = torch.compile(model) # requires PyTorch 2.0
+    print("...done.")
 
 # wrap model into DDP container
 if ddp:
@@ -234,15 +212,12 @@ def estimate_loss():
     model.eval()
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
-        tail_losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
             with ctx:
-                logits, loss, tail_loss = model(X, Y)
+                loss = model(X, Y)
             losses[k] = loss.item()
-            tail_losses[k] = tail_loss.item()
         out[f'{split}/avg'] = losses.mean()
-        out[f'{split}/tail'] = tail_losses.mean()
     model.train()
     return out
 
@@ -291,14 +266,12 @@ while True:
         if torch.cuda.is_available(): torch.cuda.synchronize() # sync for timing
         total_eval_time += time.time() - eval_start_time
         eval_count += 1
-        print(f"[{run_name}] step {iter_num} (eval {eval_count}): avg loss {losses['train/avg']:.4f}, val {losses['val/avg']:.4f} | tail loss train {losses['train/tail']:.4f}, val {losses['val/tail']:.4f}")
+        print(f"[{run_name}] step {iter_num} (eval {eval_count}): avg loss {losses['train/avg']:.4f}, val {losses['val/avg']:.4f}")
         if not disable_logging:
             logger.log("eval", {
                 "iter": iter_num,
                 "train.loss.avg": losses['train/avg'].item(),
                 "heldout.loss.avg": losses['val/avg'].item(),
-                "train.loss.tail": losses['train/tail'].item(),
-                "heldout.loss.tail": losses['val/tail'].item(),
                 "lr": lr,
                 "train_hours": (time.time() - train_start_time - total_eval_time) / 3600,  # Convert seconds to hours
                 "total_hours": (time.time() - train_start_time) / 3600,  # Convert seconds to hours
@@ -334,7 +307,7 @@ while True:
             # looking at the source of that context manager, it just toggles this variable
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
         with ctx:
-            logits, loss, _ = model(X, Y)
+            loss = model(X, Y)
             # scale to account for gradient accumulation
             loss = loss / gradient_accumulation_steps
         # immediately async prefetch next batch while model is doing the forward pass on the GPU

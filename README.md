@@ -61,7 +61,8 @@ output = power_full(
 
 ### Integration with Transformer Models
 
-The package includes a drop-in replacement for standard attention in transformer models. See `training/model.py` for a complete example of using power attention in a GPT-style model:
+The package includes a drop-in replacement for standard attention in transformer models.
+See `train/model.py` for a complete example of using power attention in a GPT-style model:
 
 ```python
 from power_attention.power_full import power_full
@@ -134,7 +135,7 @@ pip install mkdocs mkdocs-material
 
 ### Training Example
 
-To immediately see the kernel in action, `cd training` and use:
+To immediately see the kernel in action, `cd train` and use:
 
 ```bash
 # Single GPU training

@@ -35,8 +35,7 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[dependency-groups]
-
+[project.optional-dependencies]
 dev = [
   "tiktoken",
   "datasets",
@@ -57,7 +56,8 @@ dev = [
   "mkdocs",
   "mkdocstrings-python",
   "requests",
-  "wandb"
+  "wandb",
+  "zarr"
 ]
 
 [tool.cibuildwheel]
@@ -80,11 +80,6 @@ manylinux-x86_64-image = "manylinux2014"
 
 [tool.cibuildwheel.linux]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --plat manylinux2014_x86_64 --exclude libtorch_cpu.so --exclude libtorch_python.so --exclude libc10.so --exclude libtorch_cuda.so --exclude libshm.so --exclude libtorch_global_deps.so --exclude libc10_cuda.so --exclude libcaffe2_nvrtc.so --exclude libtorch_python.so --exclude libtorch_cpu.so --exclude libtorch_cuda.so --exclude libc10.so --exclude libtorch.so --exclude libtorch_cuda_linalg.so"
-
-[tool.cibuildwheel.environment]
-CUDA_HOME = "/usr/local/cuda"
-PATH = "/usr/local/cuda/bin:$PATH"
-LD_LIBRARY_PATH = "/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
 
 [tool.pytest.ini_options]
 addopts = [

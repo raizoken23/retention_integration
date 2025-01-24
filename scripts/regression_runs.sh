@@ -39,12 +39,14 @@ COMMIT_HASH=$(git rev-parse --short HEAD)
 # Current date and time
 CURRENT_TIME=$(date +"%Y%m%d%H%M")
 
+# Set the device to 1
+export CUDA_VISIBLE_DEVICES=1
+
 # Run sequence of training runs with different hyperparameters
 python train.py --run_name=regressions/default/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
 python train.py --run_name=regressions/largectx/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --batch_size=2 --block_size=16384 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
 python train.py --run_name=regressions/p1_att/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --attention_kernel=power --degree=1 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
 python train.py --run_name=regressions/p2_att/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --attention_kernel=power --degree=2 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
-python train.py --run_name=regressions/p8_att/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --attention_kernel=power --degree=8 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
 python train.py --run_name=regressions/p1/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --attention_kernel=power --degree=1 --chunk_size=128 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
 python train.py --run_name=regressions/p2/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --attention_kernel=power --degree=2 --chunk_size=1024 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
 python train.py --run_name=regressions/p1_largectx/${CURRENT_TIME}_${COMMIT_HASH} --max_iters=5000 --attention_kernel=power --degree=1 --chunk_size=128 --batch_size=2 --block_size=16384 --gradient_accumulation_steps=1 --n_layer=3 --n_head=2 --n_embd=128
