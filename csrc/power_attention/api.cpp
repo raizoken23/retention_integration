@@ -601,6 +601,27 @@ std::vector<at::Tensor> discumsum_bwd(const at::Tensor &discount, // batch_size 
 }
 
 
+#define d_switch(d, CONST_NAME, ...) \
+    [&] { \
+        if (d == 64) { \
+            constexpr static int CONST_NAME = 64; \
+            return __VA_ARGS__(); \
+        } else { \
+            TORCH_CHECK(false, "d must be one of 64"); \
+        } \
+    }()
+
+#define dblock_switch(dblock, CONST_NAME, ...) \
+    [&] { \
+        if (dblock == 8) { \
+            constexpr static int CONST_NAME = 8; \
+            return __VA_ARGS__(); \
+        } else { \  
+            TORCH_CHECK(false, "dblock must be one of 8"); \
+        } \
+    }()
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.doc() = "Power Attention";

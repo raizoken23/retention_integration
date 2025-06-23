@@ -6,6 +6,8 @@ from perf._utils import clone_grads, clear_grads, same_device
 from perf._inspect import inspect_diff_details
 from perf._precision import get_violation_pct
 
+from power_attention._utils import diff
+
 # General checks
 
 def sanity_check_tensor(tensor):
@@ -31,7 +33,7 @@ def sanity_check_tensors(tensors):
             else:
                 raise ValueError(f"Unsupported type: {type(tensor_or_tensors)}")
         except AssertionError as e:
-            raise AssertionError(f"Element {i}/{len(tensors)} failed: {e}")
+            raise AssertionError(f"Element {i+1}/{len(tensors)} failed: {e}")
 
 def check_tensor_properties(tensor: torch.Tensor, properties: Any = None):
     """Check that a tensor is well-behaved and matches expected properties.
@@ -83,7 +85,7 @@ def check_tensors_properties(tensors_or_tensor, properties_or_property):
             try:
                 check_tensor_properties(tensor, props)
             except AssertionError as e:
-                raise AssertionError(f"Element {i}/{len(tensors_or_tensor)} failed: {e}")
+                raise AssertionError(f"Element {i+1}/{len(tensors_or_tensor)} failed: {e}")
 
 def check_tensor_property_pairs(*tensor_property_pairs):
     """Check that a list of tensor-property pairs match expected properties."""
@@ -103,6 +105,17 @@ def check_allclose(a, b, rtol=None, atol=None):
     abs_error = compare(a, b, relative=False)
     rel_error = compare(a, b, relative=True)
     if (atol is not None and abs_error > atol) or (rtol is not None and rel_error > rtol):
+        if isinstance(a, torch.Tensor):
+            diff(a, b, rtol=rtol, atol=atol, assert_close=False, verbose=True)
+        elif isinstance(a, (list, tuple)):
+            for i, (a_i, b_i) in enumerate(zip(a, b)):
+                diff(a_i, b_i, rtol=rtol, atol=atol, assert_close=False, verbose=True, title=f"Tensor {i+1}/{len(a)}")
+        elif isinstance(a, dict):
+            for key in a:
+                diff(a[key], b[key], rtol=rtol, atol=atol, assert_close=False, verbose=True, title=f"Tensor {key}")
+        else:
+            raise ValueError(f"Unsupported type: {type(a)}")
+            
         raise AssertionError(f"Values don't match within tolerance rtol={rtol}, atol={atol}. Max absolute error: {abs_error:.4e}, max relative error: {rel_error:.4e}")
 
 
@@ -241,7 +254,7 @@ def check_inputs_backwards_match(*, fn, inputs1, inputs2, atol=None, rtol=None):
     sanity_check_tensors([grads1, grads2])
     check_allclose(grads1, grads2, atol=atol, rtol=rtol)
 
-def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0.):
+def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0., diff_tol=None):
     """Given two functions, check that they produce the same output for the same inputs.
 
     gold_inputs are high-precision inputs, the reference function is run with these inputs
@@ -255,6 +268,7 @@ def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=N
         test_inputs: Low-precision inputs for reference & test function
         tol: float. Tolerance for difference
         atol: float. Absolute tolerance for difference
+        diff_tol: float. Tolerance for percentage of elements that differ
     """
     # ref_inputs = clone_inputs(test_inputs)
     ref_inputs = test_inputs
@@ -269,10 +283,12 @@ def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=N
         check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
     except AssertionError as e:
         violation_pct = get_violation_pct(gold_output, ref_output, test_output, tol=rtol, atol=atol)
+        if diff_tol is not None and violation_pct < diff_tol:
+            return
         msg = inspect_diff_details(gold_output, ref_output, test_output, tol=rtol, atol=atol) 
         raise AssertionError(f"Precision failure: {e}\n{msg}\nViolation percentage: {violation_pct * 100:.2f}%")
 
-def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0.):
+def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0., diff_tol=None):
     """Given two functions, check that they produce the same gradients for the same inputs.
 
     gold_inputs are high-precision inputs, the reference function is run with these inputs
@@ -286,6 +302,7 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
         test_inputs: Low-precision inputs for reference & test function
         tol: float. Tolerance for difference
         atol: float. Absolute tolerance for difference
+        diff_tol: float. Tolerance for percentage of elements that differ
     """
 
     def _create_grad_tensors(example):
@@ -316,6 +333,8 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
         check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
     except AssertionError as e:
         violation_pct = get_violation_pct(gold_grads, ref_grads, test_grads, tol=rtol, atol=atol)
+        if diff_tol is not None and violation_pct < diff_tol:
+            return
         msg = inspect_diff_details(gold_grads, ref_grads, test_grads, tol=rtol, atol=atol)
         raise AssertionError(f"Precision failure: {e}\n{msg}\nViolation percentage: {violation_pct * 100:.2f}%")
     torch.cuda.empty_cache()

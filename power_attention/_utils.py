@@ -1,5 +1,5 @@
 import torch
-from math import floor, ceil
+from math import floor, ceil, log
 from functools import partial
 from power_attention_cuda import InnerBlock_DT, OuterBlock_DT
 
@@ -30,6 +30,25 @@ def layernorm(x, eps=None):
     elif eps is None:
         eps = 0.0
     return ((o - o.mean(-1, keepdim=True)) / (o.std(-1, keepdim=True, correction=False) + eps)).to(x.dtype)
+
+def unscale_ballnorm(x, log_scale, radius=1.0):
+    """Ballnorm along the last dimension.
+    Anything outside the radius of the 1-ball gets projected onto its surface. Inside is left unchanged.
+    The x is assumed to be pre-scaled for stability by the exp(-log_scale) (meaning the "true" value is x * exp(log_scale)),
+    so we take this into account when deciding whether or not to project.
+    """
+
+    assert len(log_scale.shape) == len(x.shape), f"log_scale.shape: {log_scale.shape}, x.shape: {x.shape}"
+    assert log_scale.shape[:-1] == x.shape[:-1], f"log_scale.shape: {log_scale.shape}, x.shape: {x.shape}"
+    assert log_scale.shape[-1] == 1, f"log_scale.shape: {log_scale.shape}"
+
+    o = x.float()
+    mean = o.mean(-1, keepdim=True)
+    std = torch.clamp(o.std(-1, keepdim=True, correction=False), min=1e-9)
+    y = torch.where(torch.log(std) + log_scale > log(radius),
+                    (o - mean) / std,              # outside the ball, project onto its surface
+                    o * torch.exp(log_scale))      # inside the ball, leave unchanged but undo effect of log_scale
+    return y.to(x.dtype)
 
 # Credit: https://github.com/pytorch/pytorch/issues/64947#issuecomment-2304371451
 def torch_quantile(
@@ -145,3 +164,90 @@ def print_tensor(tensor, indent=0, multi_idx=None):
             if i < tensor.shape[0] - 1:
                 print()
     
+
+def diff(a, b, rtol=None, atol=None, assert_close=True, verbose=True, title=None):
+    """ A diff function that helps debug numerical issues
+
+    Args:
+        a: torch.Tensor
+        b: torch.Tensor
+        rtol: float
+        atol: float
+        assert_close: bool
+        verbose: bool
+    Returns:
+        bool: True if a and b are close, False otherwise
+    """
+    a = a.to(torch.float32)
+    b = b.to(torch.float32)
+    if rtol is None: rtol = 1e-3
+    if atol is None: atol = 1e-5
+    equal = torch.allclose(a, b, rtol=rtol, atol=atol)
+    error_max = torch.max(torch.abs(a - b))
+    error_hist = torch.histc(torch.abs(a - b), bins=100, min=0, max=1)
+    
+    # Calculate absolute error
+    abs_diff = torch.abs(a - b)
+    total_elements = a.numel()
+    
+    # Calculate relative error where b is non-zero
+    b_nonzero = b != 0
+    rel_diff = torch.zeros_like(abs_diff)
+    rel_diff[b_nonzero] = abs_diff[b_nonzero] / torch.abs(b[b_nonzero])
+    
+    if verbose:
+        print('\n' * 3)
+        print('=' * 10 + f" {title} " + '=' * 10)
+        print(f"Max absolute error: {error_max.item()}")
+        print(f"Tensors are {'close' if equal else 'different'} according to torch.allclose")
+        
+        # Calculate thresholds for relative error table
+        rel_thresholds = torch.logspace(
+            torch.log10(torch.tensor(rtol)), 
+            0.0, 
+            steps=10
+        )
+        
+        # Calculate thresholds for absolute error table
+        abs_thresholds = torch.logspace(
+            torch.log10(torch.tensor(atol)), 
+            0.0, 
+            steps=10
+        )
+        
+        # Print relative error table
+        print("\nRelative Error Table:")
+        print("---------------------")
+        print(f"{'Threshold':<12} {'% matched':<12} {'Element Count':<12}")
+        print("-" * 36)
+        for threshold in rel_thresholds:
+            count = (rel_diff <= threshold).sum().item()
+            percentage = 100.0 * count / total_elements
+            print(f"{threshold.item():<12.6f} {percentage:<12.2f} {count:<12}")
+        
+        # Print absolute error table
+        print("\nAbsolute Error Table:")
+        print("---------------------")
+        print(f"{'Threshold':<12} {'% matched':<12} {'Element Count':<12}")
+        print("-" * 36)
+        for threshold in abs_thresholds:
+            count = (abs_diff <= threshold).sum().item()
+            percentage = 100.0 * count / total_elements
+            print(f"{threshold.item():<12.6f} {percentage:<12.2f} {count:<12}")
+        
+        # Print some examples of largest errors
+        if not equal:
+            n_samples = min(5, total_elements)
+            print("\nLargest Errors:")
+            flat_indices = torch.argsort(abs_diff.flatten(), descending=True)[:n_samples]
+            for i in range(n_samples):
+                idx = flat_indices[i]
+                multi_idx = torch.unravel_index(idx, a.shape)
+                multi_idx_str = ', '.join(map(str, [idx.item() for idx in multi_idx]))
+                print(f"Index [{multi_idx_str}]: a={a[multi_idx].item()}, b={b[multi_idx].item()}, "
+                      f"abs_diff={abs_diff[multi_idx].item()}, rel_diff={rel_diff[multi_idx].item()}")
+    
+    if assert_close:
+        assert equal, f"Tensors are not close! Max absolute error: {error_max.item()}"
+    
+    return equal
