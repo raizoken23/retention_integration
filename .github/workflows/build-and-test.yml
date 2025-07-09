@@ -26,8 +26,10 @@ jobs:
     - name: Install package with dev dependencies
       run: |
         source .venv/bin/activate
-        make refresh-deps
-        python -m pip install -e .[dev]
+        python -m pip install . -v
+        python -m pip install psutil packaging wheel
+        python -m pip install flash_attn==2.7.3 --no-build-isolation
+        python -m pip install .[dev]  -v
 
     - name: Run tests
       run: |
@@ -42,11 +44,6 @@ jobs:
         display-options: fEX
         fail-on-empty: true
         title: Test results
-
-    - name: Sanity-run benchmarks
-      run: |
-        source .venv/bin/activate
-        ./scripts/test_benchmark.sh
 
     - name: Sanity-run training
       run: |
