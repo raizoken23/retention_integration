@@ -196,6 +196,8 @@ def check_fn_compiles_with_backward(fn, inputs, rtol=None, atol=None):
     """Check that the fn compiles and its gradients are unchanged, including the backward pass."""
     def fwd_bwd():
         output_or_outputs = fn(**inputs)
+        if not isinstance(output_or_outputs, torch.Tensor):
+            output_or_outputs = [o for o in output_or_outputs if o.requires_grad]
         output_grads = torch.ones_like(output_or_outputs) if isinstance(output_or_outputs, torch.Tensor) else [torch.ones_like(o) for o in output_or_outputs]
         torch.autograd.backward(output_or_outputs, grad_tensors=output_grads, retain_graph=True)
         return clone_grads(inputs)
@@ -319,17 +321,25 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
             return [torch.ones_like(e) for e in example]
         else:
             raise ValueError(f"Unsupported type: {type(example)}")
+        
+    def get_outputs_with_grad(outputs):
+        if isinstance(outputs, torch.Tensor):
+            return outputs
+        elif isinstance(outputs, (tuple, list)):
+            return [o for o in outputs if o.requires_grad]
+        else:
+            raise ValueError(f"Unsupported type: {type(outputs)}")
 
-    gold_output = ref_fn(**gold_inputs)
+    gold_output = get_outputs_with_grad(ref_fn(**gold_inputs))
     torch.autograd.backward(gold_output, grad_tensors=_create_grad_tensors(gold_output))
     gold_grads = clone_grads(gold_inputs)
 
-    ref_output = ref_fn(**test_inputs)
+    ref_output = get_outputs_with_grad(ref_fn(**test_inputs))
     torch.autograd.backward(ref_output, grad_tensors=_create_grad_tensors(ref_output))
     ref_grads = clone_grads(test_inputs)
     
     clear_grads(test_inputs)
-    test_output = test_fn(**test_inputs)
+    test_output = get_outputs_with_grad(test_fn(**test_inputs))
     torch.autograd.backward(test_output, grad_tensors=_create_grad_tensors(test_output))
     test_grads = clone_grads(test_inputs)
 

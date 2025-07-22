@@ -43,6 +43,7 @@ def test_backward_properties(fns_params):
     with torch.autograd.enable_grad():
         outputs = fns['fn'](**inputs)
         if isinstance(outputs, torch.Tensor): outputs = [outputs]
+        outputs = [o for o in outputs if o.requires_grad]
         torch.autograd.backward(outputs, [torch.ones_like(output) for output in outputs])
     desired_input_properties = fns['input_properties'](**params)
     check_tensor_property_pairs(

@@ -55,7 +55,7 @@ attention_param_ranges = {
     'deg': [2, 4],
     'scale': [1.0, 1/8.0],
     'gating': [False, True],
-    'norm': [True],
+    'norm': [True, False],
     'causal': [False, True],
     'dtype': [torch.bfloat16, torch.float16],
     'device': ['cuda'],

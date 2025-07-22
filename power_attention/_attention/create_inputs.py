@@ -41,6 +41,6 @@ def output_properties(b=2, t=32, h=8, d=32, dtype=torch.float16, device='cuda', 
     else:
         return dict(
             Y=((*shape_base, d), dtype, device),
-            l=(shape_base, dtype, device),
+            l=(shape_base, torch.float32, device),
             rowmax=(shape_base, torch.float32, device)
         )
