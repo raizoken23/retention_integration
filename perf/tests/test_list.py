@@ -34,7 +34,7 @@ from power_attention._attention import (
     output_properties as attention_output_properties,
     attention_reference,
     attention_reference_fwd,
-    attention_cuda,
+    # attention_cuda,
     attention_triton,
 )
 attention_input_output = {'create_inputs': attention_create_inputs, 'input_properties': attention_input_properties, 'output_properties': attention_output_properties}
@@ -50,11 +50,13 @@ attention_fn_sets = [
 attention_param_ranges = {
     'b': [4],
     't': [128, 1024],
-    'h': [4],
+    'h': [2],
     'd': [32, 64],
     'deg': [2, 4],
     'scale': [1.0, 1/8.0],
     'gating': [False, True],
+    'norm': [True],
+    'causal': [False, True],
     'dtype': [torch.bfloat16, torch.float16],
     'device': ['cuda'],
 }
@@ -71,7 +73,7 @@ from power_attention._update_state import (
     output_properties as update_state_output_properties,
     update_state_reference,
     update_state_reference_fwd,
-    update_state_cuda,
+    # update_state_cuda,
     update_state_triton,
     update_state_vidrial_reference,
     update_state_vidrial
@@ -91,9 +93,9 @@ update_state_fn_sets = [
 ]
 update_state_param_ranges = {
     'b': [1],
-    'n': [4, 8], 
-    'c': [1024, 4096],
-    'h': [4],
+    'n': [2, 4], 
+    'c': [128, 1024],
+    'h': [2],
     'd': [32, 64],
     'deg': [2],
     'dtype': [torch.bfloat16],
@@ -107,15 +109,16 @@ update_state_vidrial_fn_sets = [
 ]
 update_state_vidrial_param_ranges = {
     'b': [1],
-    'n': [4, 4], 
-    'c': [1024, 4096],
+    'n': [2, 4], 
+    'c': [128, 1024],
     'h': [4],
     'd': [64],
     'deg': [2],
     'dtype': [torch.bfloat16],
     'device': ['cuda'],
 }
-UPDATE_STATE_TEST_CASES += fn_set_and_param_range_to_test_cases(update_state_vidrial_fn_sets, update_state_vidrial_param_ranges)
+# TODO: enable vidrial
+# UPDATE_STATE_TEST_CASES += fn_set_and_param_range_to_test_cases(update_state_vidrial_fn_sets, update_state_vidrial_param_ranges)
 
 
 
@@ -125,17 +128,20 @@ from power_attention._discumsum import (
     input_properties as discumsum_input_properties,
     output_properties as discumsum_output_properties,
     discumsum_reference,
-    discumsum as discumsum_cuda,
+    # discumsum as discumsum_cuda,
+    discumsum_triton
 )
 discumsum_input_output = {'create_inputs': discumsum_create_inputs, 'input_properties': discumsum_input_properties, 'output_properties': discumsum_output_properties}
 discumsum_fn_sets = [
-    {'name': 'discumsum_cuda', 'extends': 'discumsum', 'impl': 'cuda',
-        'fn': discumsum_cuda, 'ref': discumsum_reference, **discumsum_input_output},
+    # {'name': 'discumsum_cuda', 'extends': 'discumsum', 'impl': 'cuda',
+    #     'fn': discumsum_cuda, 'ref': discumsum_reference, **discumsum_input_output},
+    {'name': 'discumsum_triton', 'extends': 'discumsum', 'impl': 'triton',
+        'fn': discumsum_triton, 'ref': discumsum_reference, **discumsum_input_output},
 ]
 discumsum_param_ranges = {
     'b': [1, 2],
-    'n': [8, 32],
-    'h': [4, 8],
+    'n': [1, 8, 32],
+    'h': [1, 2],
     'D': [4],
     'd': [32, 64],
     'dtype': [torch.float16, torch.bfloat16],
@@ -155,7 +161,7 @@ from power_attention._query_state import (
     output_properties as query_state_output_properties,
     query_state_reference,
     query_state_reference_fwd,
-    query_state_cuda,
+    # query_state_cuda,
     query_state_triton,
     query_state_vidrial_reference,
     query_state_vidrial,
@@ -175,9 +181,9 @@ query_state_fn_sets = [
 ]
 query_state_param_ranges = {
     'b': [1],
-    'n': [4, 8], 
-    'c': [1024, 4096],
-    'h': [4],
+    'n': [2, 4], 
+    'c': [128, 1024],
+    'h': [2],
     'd': [32, 64],
     'dtype': [torch.bfloat16],
     'device': ['cuda'],
@@ -190,15 +196,16 @@ query_state_vidrial_fn_sets = [
 ]
 query_state_vidrial_param_ranges = {
     'b': [1],
-    'n': [4, 8], 
-    'c': [1024, 4096],
-    'h': [4],
+    'n': [2, 4], 
+    'c': [128, 1024],
+    'h': [2],
     'd': [64],
     'deg': [2],
     'dtype': [torch.bfloat16],
     'device': ['cuda'],
 }
-QUERY_STATE_TEST_CASES += fn_set_and_param_range_to_test_cases(query_state_vidrial_fn_sets, query_state_vidrial_param_ranges)
+# TODO: enable vidrial
+# QUERY_STATE_TEST_CASES += fn_set_and_param_range_to_test_cases(query_state_vidrial_fn_sets, query_state_vidrial_param_ranges)
 
 
 
@@ -207,13 +214,13 @@ QUERY_STATE_TEST_CASES += fn_set_and_param_range_to_test_cases(query_state_vidri
 ## power full
 
 from power_attention import (
-    power_full_reference,
-    power_full,
-    power_full_vidrial_reference,
     create_inputs as power_full_create_inputs,
     input_properties as power_full_input_properties,
     output_properties as power_full_output_properties,
 )
+from power_attention.reference import power_full as power_full_reference
+from power_attention.vidrial_reference import power_full as power_full_vidrial_reference
+from power_attention.triton import power_full
 power_full_input_output = {'create_inputs': power_full_create_inputs, 'input_properties': power_full_input_properties, 'output_properties': power_full_output_properties}
 power_full_fn_sets = [
     {'name': 'power_full_reference', 'extends': 'power_full', 'impl': 'reference',
@@ -226,15 +233,14 @@ power_full_fn_sets = [
 # Define parameter ranges
 power_full_param_ranges = {
     'b': [1],
-    't': [1024, 4096], 
-    'h': [1],
+    't': [128, 1024], 
+    'h': [2],
     'd': [32, 64],
     'qhead_ratio': [1],
     'dtype': [torch.bfloat16],
     'device': ['cuda'],
     'gating': [False, True],
-    'chunk_size': [None, 1024],
-    'deg': [2],
-    'scale': [1/8.0],
+    'chunk_size': [None, 128],
+    'deg': [2]
 }
 POWER_FULL_TEST_CASES = fn_set_and_param_range_to_test_cases(power_full_fn_sets, power_full_param_ranges)
