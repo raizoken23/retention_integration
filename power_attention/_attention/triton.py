@@ -746,9 +746,9 @@ class _power_attention(torch.autograd.Function):
     def backward(ctx, do, dl, drowmax):
         Q, K, V, l, rowmax, o, log_GQ, log_GK = ctx.saved_tensors
         if log_GQ is not None:
-            assert log_GQ.is_contiguous() # needed for reuse log_GQ's strides for dlog_GQ
-            assert log_GK.is_contiguous() # needed for reuse log_GK's strides for dlog_GK
-        assert do.is_contiguous()
+            log_GQ = log_GQ.contiguous() # needed for reuse log_GQ's strides for dlog_GQ
+            log_GK = log_GK.contiguous() # needed for reuse log_GK's strides for dlog_GK
+        do = do.contiguous()
         b, h, t, stage, norm, gating, use_log2 = ctx.b, ctx.h, ctx.t, ctx.stage, ctx.norm, ctx.gating, ctx.use_log2
         q_strides, k_strides, v_strides, rowmax_strides, gq_strides, gk_strides = ctx.q_strides, ctx.k_strides, ctx.v_strides, ctx.rowmax_strides, ctx.gq_strides, ctx.gk_strides
         r, w, d, e, deg, scale = ctx.r, ctx.w, ctx.d, ctx.e, ctx.deg, ctx.scale
