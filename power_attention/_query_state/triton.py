@@ -61,7 +61,7 @@ def _query_state_fwd(Q, S, SK, Y_attn, L_attn, M, O, L,
                      stride_ob, stride_ot, stride_oh, stride_oe,
                      stride_lb, stride_lt, stride_lh,
                      n, h, c, d: tl.constexpr, D, e: tl.constexpr,
-                     zero_initial_state,
+                     zero_initial_state: tl.constexpr,
                      deg: tl.constexpr,
                      scale_p,
                      block1: tl.constexpr,
@@ -112,14 +112,14 @@ else:
 
 mask_T = range_t < c
 
-for m in range(0, d//block1):
-    p_q_d1 = Q + range_t[:, None] * stride_qt + (m*block1 + range_d1[None, :]) * stride_qd # BLOCK_T x block1
+for m_loop in range(0, d//block1):
+    p_q_d1 = Q + range_t[:, None] * stride_qt + (m_loop*block1 + range_d1[None, :]) * stride_qd # BLOCK_T x block1
     q_d1 = tl.load(p_q_d1, mask=mask_T[:, None], other=0.) # BLOCK_T x block1
 
-    for n in range(0, (m+1)*block1//block2):
-        off_d2 = n*block2
+    for n_loop in range(0, (m_loop+1)*block1//block2):
+        off_d2 = n_loop*block2
         off_d2 = tl.multiple_of(off_d2, block2)
-        off_D = (m*(1+m)//2)*block1*block1 + off_d2*block1
+        off_D = (m_loop*(1+m_loop)//2)*block1*block1 + off_d2*block1
         {% for i in range(block2) -%}
         p_q_d2_{{i}} = Q + range_t[:] * stride_qt + (off_d2 + {{i}}) * stride_qd # BLOCK_T
         p_s_{{i}} = S + (range_d1[:, None] + off_D + {{i}} * block1) * stride_sD + range_e[None, :] * stride_se # block1 x BLOCK_E_VALID
@@ -250,7 +250,7 @@ dl_attn = -attn_factor * delta # BLOCK_T
 tl.store(p_dl_attn, dl_attn, mask=range_t < c)
 
 # --- compute dY_attn ---
-do = tl.load(p_do) # [BLOCK_T x e]
+do = tl.load(p_do, mask=(range_t < c)[:, None], other=0.0) # [BLOCK_T x e]
 dy_attn = (do * attn_factor[:, None]).to(Q.dtype.element_ty) # BLOCK_T x e
 tl.store(p_dy_attn, dy_attn, mask=(range_t < c)[:, None])
 
@@ -262,15 +262,15 @@ delta = delta * qs_factor # BLOCK_T
 dq_{{j}} = tl.zeros((BLOCK_T, block1), dtype=tl.float32)
 {% endfor -%}
 
-for m in range(0, d//block1):
-    p_q_d1 = Q + range_t[:, None] * stride_qt + (m*block1 + range_d1[None, :]) * stride_qd # [BLOCK_T x block1]
+for m_loop in range(0, d//block1):
+    p_q_d1 = Q + range_t[:, None] * stride_qt + (m_loop*block1 + range_d1[None, :]) * stride_qd # [BLOCK_T x block1]
     q_d1 = tl.load(p_q_d1, mask=(range_t < c)[:, None], other=0.) # [BLOCK_T x block1]
     dq_d1 = tl.zeros((BLOCK_T, block1), dtype=tl.float32)
 
-    for n in range(0, (m+1)*block1//block2):
-        off_d2 = n*block2
+    for n_loop in range(0, (m_loop+1)*block1//block2):
+        off_d2 = n_loop*block2
         off_d2 = tl.multiple_of(off_d2, block2)
-        off_D = (m*(1+m)//2)*block1*block1 + off_d2*block1
+        off_D = (m_loop*(1+m_loop)//2)*block1*block1 + off_d2*block1
         {% for i in range(block2) %}
         p_q_d2_{{i}} = Q + range_t[:] * stride_qt + (off_d2 + {{i}}) * stride_qd # [BLOCK_T]
         p_sT_{{i}} = S + (range_d1[None, :] + off_D + {{i}} * block1) * stride_sD + range_e[:, None] * stride_se # [BLOCK_E_VALID x block1]
@@ -285,10 +285,10 @@ for m in range(0, d//block1):
 
         {% for i in range(block2) %}
         dpq_{{i}} = tl.dot(do, sT_{{i}}) - delta[:, None] * sk_{{i}}[None, :] # [BLOCK_T x block1]
-        if m == 0:
+        if m_loop == 0:
             dq_0 += dpq_{{i}} * q_d2_{{i}}[:, None]
         {% for j in range(1, d//block1 - 1) -%}
-        elif m == {{j}}:
+        elif m_loop == {{j}}:
             dq_{{j}} += dpq_{{i}} * q_d2_{{i}}[:, None]
         {% endfor -%}
         else:
@@ -401,17 +401,19 @@ else:
     gamma = tl.sqrt(D).to(tl.float32)
 
 for tid in range(0, tl.cdiv(c, BLOCK_T)):
-    p_m = M + (range_t + tid * BLOCK_T) * stride_mt # [BLOCK_T]
-    p_delta = Delta + (range_t + tid * BLOCK_T) * stride_dt # [BLOCK_T]
-    p_l = L + (range_t + tid * BLOCK_T) * stride_lt # [BLOCK_T]
-    rowmax = tl.load(p_m, mask=(range_t + tid * BLOCK_T) < c, other=float('inf'))
-    delta = tl.load(p_delta, mask=(range_t + tid * BLOCK_T) < c, other=0.)
-    l = tl.load(p_l, mask=(range_t + tid * BLOCK_T) < c, other=float('inf'))
-    qT_d1 = tl.load(p_qT_d1) # block1 x BLOCK_T
-    do = tl.load(p_do) # [BLOCK_T x BLOCK_E_VALID]
+    real_range_t = range_t + tid * BLOCK_T
+    p_m = M + real_range_t * stride_mt # [BLOCK_T]
+    p_delta = Delta + real_range_t * stride_dt # [BLOCK_T]
+    p_l = L + real_range_t * stride_lt # [BLOCK_T]
+    mask_t = real_range_t < c
+    rowmax = tl.load(p_m, mask=mask_t, other=float('inf'))
+    delta = tl.load(p_delta, mask=mask_t, other=0.)
+    l = tl.load(p_l, mask=mask_t, other=float('inf'))
+    qT_d1 = tl.load(p_qT_d1, mask=mask_t[None, :], other=0.0) # block1 x BLOCK_T
+    do = tl.load(p_do, mask=mask_t[:, None], other=0.0) # [BLOCK_T x BLOCK_E_VALID]
 
     {% for i in range(block2) -%}
-    q_d2_{{i}} = tl.load(p_q_d2_{{i}}) # BLOCK_T
+    q_d2_{{i}} = tl.load(p_q_d2_{{i}}, mask=mask_t, other=0.0) # BLOCK_T
     phiqT_{{i}} = qT_d1 * q_d2_{{i}}[None, :] # [block1 x BLOCK_T]
     {% endfor -%}
 
@@ -453,18 +455,19 @@ def _query_state_bwd_preprocess(O, DO, Delta,  #
                          stride_ob, stride_om, stride_oh, stride_oe, #
                          stride_dob, stride_dom, stride_doh, stride_doe, #
                          stride_db, stride_dm, stride_dh, #
-                         BM: tl.constexpr, HEAD_DIM: tl.constexpr  #
+                         BM: tl.constexpr, HEAD_DIM: tl.constexpr, M_CTX: tl.constexpr  #
                          ):
     range_m = tl.program_id(0) * BM + tl.arange(0, BM)
     off_b = tl.program_id(1)
     off_h = tl.program_id(2)
     off_n = tl.arange(0, HEAD_DIM)
     # load
-    o = tl.load(O + off_b * stride_ob + off_h * stride_oh + range_m[:, None] * stride_om + off_n[None, :] * stride_oe, cache_modifier=".cg").to(tl.float32)
-    do = tl.load(DO + off_b * stride_dob + off_h * stride_doh + range_m[:, None] * stride_dom + off_n[None, :] * stride_doe, cache_modifier=".cg").to(tl.float32)
+    mask = range_m < M_CTX
+    o = tl.load(O + off_b * stride_ob + off_h * stride_oh + range_m[:, None] * stride_om + off_n[None, :] * stride_oe, cache_modifier=".cg", mask=mask[:, None], other=0.0).to(tl.float32)
+    do = tl.load(DO + off_b * stride_dob + off_h * stride_doh + range_m[:, None] * stride_dom + off_n[None, :] * stride_doe, cache_modifier=".cg", mask=mask[:, None], other=0.0).to(tl.float32)
     delta = tl.sum(o * do, axis=1)
     # write-back
-    tl.store(Delta + off_b * stride_db + off_h * stride_dh + range_m * stride_dm, delta)
+    tl.store(Delta + off_b * stride_db + off_h * stride_dh + range_m * stride_dm, delta, mask=mask)
 
 
 
@@ -566,7 +569,8 @@ class _query_state(torch.autograd.Function):
             *O.stride(),
             *dO.stride(),
             *delta.stride(),
-            HEAD_DIM=e
+            HEAD_DIM=e,
+            M_CTX=c
         )
 
         # --- compute dQ and dY_attn and dl_attn ---

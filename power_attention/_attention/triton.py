@@ -78,28 +78,6 @@ def keep(conf):
         return False
     return True
 
-def prune_configs(configs, nargs, **kwargs):
-    pruned_configs = []
-    for config in configs:
-        M_CTX = nargs["M_CTX"] if "M_CTX" in nargs else kwargs["M_CTX"]
-        N_CTX = nargs["N_CTX"] if "N_CTX" in nargs else kwargs["N_CTX"]
-        if config.kwargs["BM"] <= M_CTX and config.kwargs["BN"] <= N_CTX:
-            pruned_configs.append(config)
-            if os.environ.get("TRITON_NO_AUTOTUNE", "0") == "1":
-                return pruned_configs
-    return pruned_configs
-
-def prune_configs_bwd(configs, nargs, **kwargs):
-    pruned_configs = []
-    for config in configs:
-        M_CTX = nargs["M_CTX"] if "M_CTX" in nargs else kwargs["M_CTX"]
-        N_CTX = nargs["N_CTX"] if "N_CTX" in nargs else kwargs["N_CTX"]
-        if config.kwargs["BM1"] <= M_CTX and config.kwargs["BN1"] <= N_CTX and config.kwargs["BM2"] <= M_CTX and config.kwargs["BN2"] <= N_CTX:
-            pruned_configs.append(config)
-            if os.environ.get("TRITON_NO_AUTOTUNE", "0") == "1":
-                return pruned_configs
-    return pruned_configs
-
 @triton.jit
 def _power(a, deg: tl.constexpr):
     if deg == 1:
@@ -139,11 +117,11 @@ def _attn_fwd_inner(acc, l_i, m_i, q, gq, p_k, p_gk, p_v, #
     for start_n in range(lo, hi, BN):
         start_n = tl.multiple_of(start_n, BN)
         # -- compute qk ----
-        k = tl.load(p_k)
+        k = tl.load(p_k, boundary_check=(0, 1), padding_option="zero")
         s = tl.dot(q, k) * scale
         signs = tl.where(s > 0, 1, -1)
         if gating:
-            gk = tl.load(p_gk)
+            gk = tl.load(p_gk, boundary_check=(0,), padding_option="zero")
         else:
             gk = None
         if use_log2:
@@ -174,7 +152,7 @@ def _attn_fwd_inner(acc, l_i, m_i, q, gq, p_k, p_gk, p_v, #
             alpha = tl.exp(m_i - m_ij)
         l_i = l_i * alpha + l_ij
         acc = acc * alpha[:, None]
-        v = tl.load(p_v)
+        v = tl.load(p_v, boundary_check=(0, 1), padding_option="zero")
         acc = tl.dot(p.to(v.dtype), v, acc)
         # -- update m_i
         m_i = m_ij
@@ -186,7 +164,7 @@ def _attn_fwd_inner(acc, l_i, m_i, q, gq, p_k, p_gk, p_v, #
     return acc, l_i, m_i
 
 
-@triton.autotune(list(filter(keep, fwd_configs)), key=["M_CTX", "N_CTX", "DIM_QK", "DIM_VO", "r", "w", "gating", "deg", "norm"], prune_configs_by={'early_config_prune': prune_configs})
+@triton.autotune(list(filter(keep, fwd_configs)), key=["M_CTX", "N_CTX", "DIM_QK", "DIM_VO", "r", "w", "gating", "deg", "norm"])
 @triton.jit
 def _attn_fwd(Q, K, V, LOG_GQ, LOG_GK, L, M, Out,  #
               stride_qb, stride_qh, stride_qm, stride_qd,  #
@@ -232,9 +210,9 @@ def _attn_fwd(Q, K, V, LOG_GQ, LOG_GK, L, M, Out,  #
     l_i = tl.zeros([BM], dtype=tl.float32) + 1.0
     acc = tl.zeros([BM, DIM_VO], dtype=tl.float32)
 
-    q = tl.load(p_q, cache_modifier=".cg")
+    q = tl.load(p_q, cache_modifier=".cg", boundary_check=(0, 1), padding_option="zero")
     if gating:
-        gq = tl.load(p_gq, cache_modifier=".cg")
+        gq = tl.load(p_gq, cache_modifier=".cg", boundary_check=(0,), padding_option="zero")
     else:
         gq = None
 
@@ -264,10 +242,10 @@ def _attn_fwd(Q, K, V, LOG_GQ, LOG_GK, L, M, Out,  #
     p_o = tl.make_block_ptr(Out+o_offset, (M_CTX, DIM_VO), (stride_om, stride_oe), (start_m*BM, 0), (BM, DIM_VO), (1, 0))
     p_l = L + l_offset + range_m * stride_lm
     p_m = M + m_offset + range_m * stride_mm
-    tl.store(p_m, m_i)
+    tl.store(p_m, m_i, mask=range_m < M_CTX)
     if not norm: # store temporal norm
-        tl.store(p_l, l_i)
-    tl.store(p_o, acc.to(Out.type.element_ty))
+        tl.store(p_l, l_i, mask=range_m < M_CTX)
+    tl.store(p_o, acc.to(Out.type.element_ty), boundary_check=(0, 1))
 
 
 bwd_configs = [
@@ -282,10 +260,10 @@ bwd_configs = [
 ]
 
 def keep_bwd(conf):
+    BM1 = conf.kwargs["BM1"]
     BN1 = conf.kwargs["BN1"]
     BM2 = conf.kwargs["BM2"]
     BN2 = conf.kwargs["BN2"]
-    BM1 = conf.kwargs["BM1"]
     FACTOR = conf.kwargs["BLK_SLICE_FACTOR"]
     if BN1 != BM2 or BN2 // FACTOR < 16 or BM1 // FACTOR < 16:
         return False
@@ -303,18 +281,19 @@ def _attn_bwd_preprocess(O, DO, Delta,  #
                          stride_ob, stride_oh, stride_om, stride_oe, #
                          stride_dob, stride_doh, stride_dom, stride_doe, #
                          stride_db, stride_dh, stride_dm, #
-                         BM: tl.constexpr, HEAD_DIM: tl.constexpr  #
+                         BM: tl.constexpr, HEAD_DIM: tl.constexpr, M_CTX: tl.constexpr  #
                          ):
     range_m = tl.program_id(0) * BM + tl.arange(0, BM)
     off_b = tl.program_id(1)
     off_h = tl.program_id(2)
     off_n = tl.arange(0, HEAD_DIM)
+    mask_m = range_m < M_CTX
     # load
-    o = tl.load(O + off_b * stride_ob + off_h * stride_oh + range_m[:, None] * stride_om + off_n[None, :] * stride_oe, cache_modifier=".cg")
-    do = tl.load(DO + off_b * stride_dob + off_h * stride_doh + range_m[:, None] * stride_dom + off_n[None, :] * stride_doe, cache_modifier=".cg").to(tl.float32)
+    o = tl.load(O + off_b * stride_ob + off_h * stride_oh + range_m[:, None] * stride_om + off_n[None, :] * stride_oe, cache_modifier=".cg", mask=mask_m[:, None], other=0.0)
+    do = tl.load(DO + off_b * stride_dob + off_h * stride_doh + range_m[:, None] * stride_dom + off_n[None, :] * stride_doe, cache_modifier=".cg", mask=mask_m[:, None], other=0.0).to(tl.float32)
     delta = tl.sum(o * do, axis=1)
     # write-back
-    tl.store(Delta + off_b * stride_db + off_h * stride_dh + range_m * stride_dm, delta)
+    tl.store(Delta + off_b * stride_db + off_h * stride_dh + range_m * stride_dm, delta, mask=mask_m)
 
 
 @triton.jit
@@ -340,9 +319,9 @@ def _attn_bwd_dkdv(dk, dv, dgk, k, v, gk, #
     for _ in range(num_steps):
         range_m = curr_m + tl.arange(0, BM)
         # --- re-compute p ---
-        qT = tl.load(p_qT)
+        qT = tl.load(p_qT, boundary_check=(0, 1), padding_option="zero")
         if gating:
-            gq = tl.load(p_gq)
+            gq = tl.load(p_gq, boundary_check=(0,), padding_option="zero")
         else:
             gq = None
         sT = tl.dot(k, qT) # (N, M)
@@ -354,7 +333,7 @@ def _attn_bwd_dkdv(dk, dv, dgk, k, v, gk, #
         if gating:
             zT = zT + gq[None, :] - gk[:, None]
         p_m = M + range_m * stride_mm
-        m = tl.load(p_m)
+        m = tl.load(p_m, mask=range_m < M_CTX, other=float("inf"))
         if MASK:
             mask = (range_m[None, :] // r) >= (range_n[:, None] // w)
             zT = tl.where(mask, zT, -float("inf"))
@@ -366,14 +345,14 @@ def _attn_bwd_dkdv(dk, dv, dgk, k, v, gk, #
             pT = pT * s_signs
 
         # --- compute dv ---
-        do = tl.load(p_do)
+        do = tl.load(p_do, boundary_check=(0, 1), padding_option="zero")
         dv = tl.dot(pT.to(Q.type.element_ty), do, dv)
 
         # --- compute dp ---
         if norm:
-            dl_or_delta = - tl.load(Delta + range_m * stride_dm)
+            dl_or_delta = - tl.load(Delta + range_m * stride_dm, mask=range_m < M_CTX, other=0.0)
         else:
-            dl_or_delta = tl.load(DL + range_m * stride_dlm)
+            dl_or_delta = tl.load(DL + range_m * stride_dlm, mask=range_m < M_CTX, other=0.0)
         dpT = tl.dot(v, tl.trans(do), out_dtype=tl.float32) # (BN, BM)
         dsT = pT * (dpT + dl_or_delta[None, :])
         if gating:
@@ -417,10 +396,10 @@ def _attn_bwd_dq(dq, dgq, q, gq, do, m, dl_or_delta, #
     for _ in range(num_steps):
         range_n = curr_n + tl.arange(0, BN)
         # --- re-compute p ---
-        kT = tl.load(p_kT)
-        vT = tl.load(p_vT)
+        kT = tl.load(p_kT, boundary_check=(0, 1), padding_option="zero")
+        vT = tl.load(p_vT, boundary_check=(0, 1), padding_option="zero")
         if gating:
-            gk = tl.load(p_gk)
+            gk = tl.load(p_gk, boundary_check=(0,), padding_option="zero")
         else:
             gk = None
         s = tl.dot(q, kT) # (M, N)
@@ -463,7 +442,7 @@ def _attn_bwd_dq(dq, dgq, q, gq, do, m, dl_or_delta, #
     return dq, dgq
 
 
-@triton.autotune(list(filter(keep_bwd, bwd_configs)), key=["M_CTX", "N_CTX", "DIM_QK", "DIM_VO", "r", "w", "gating", "deg"], prune_configs_by={'early_config_prune': prune_configs_bwd})
+@triton.autotune(list(filter(keep_bwd, bwd_configs)), key=["M_CTX", "N_CTX", "DIM_QK", "DIM_VO", "r", "w", "gating", "deg"])
 @triton.jit
 def _attn_bwd(Q, K, V, LOG_GQ, LOG_GK, M, Delta, DO, DL, DQ, DK, DV, DLOG_GQ, DLOG_GK, #
               stride_qb, stride_qh, stride_qm, stride_qd, #
@@ -536,11 +515,11 @@ def _attn_bwd(Q, K, V, LOG_GQ, LOG_GK, M, Delta, DO, DL, DQ, DK, DV, DLOG_GQ, DL
     # load k, v, gk
     p_k = tl.make_block_ptr(K, (N_CTX, DIM_QK), (stride_kn, stride_kd), (start_n, 0), (BN1, DIM_QK), (1, 0))
     p_v = tl.make_block_ptr(V, (N_CTX, DIM_VO), (stride_vn, stride_ve), (start_n, 0), (BN1, DIM_VO), (1, 0))
-    k = tl.load(p_k, cache_modifier=".cg")
-    v = tl.load(p_v, cache_modifier=".cg")
+    k = tl.load(p_k, cache_modifier=".cg", boundary_check=(0, 1), padding_option="zero")
+    v = tl.load(p_v, cache_modifier=".cg", boundary_check=(0, 1), padding_option="zero")
     if gating:
         p_gk = tl.make_block_ptr(LOG_GK, (N_CTX,), (stride_gkn,), (start_n,), (BN1,), (0,))
-        gk = tl.load(p_gk, cache_modifier=".cg")
+        gk = tl.load(p_gk, cache_modifier=".cg", boundary_check=(0,), padding_option="zero")
     else:
         gk = None
 
@@ -569,11 +548,12 @@ def _attn_bwd(Q, K, V, LOG_GQ, LOG_GK, M, Delta, DO, DL, DQ, DK, DV, DLOG_GQ, DL
     p_dv = tl.make_block_ptr(DV, (N_CTX, DIM_VO), (stride_dvn, stride_dve), (start_n, 0), (BN1, DIM_VO), (1, 0))
     p_dk = tl.make_block_ptr(DK, (N_CTX, DIM_QK), (stride_dkn, stride_dkd), (start_n, 0), (BN1, DIM_QK), (1, 0))
 
-    tl.store(p_dv, dv.to(DV.type.element_ty))
-    tl.store(p_dk, dk.to(DK.type.element_ty))
+    mask_dkv = range_n < N_CTX
+    tl.store(p_dv, dv.to(DV.type.element_ty), boundary_check=(0, 1))
+    tl.store(p_dk, dk.to(DK.type.element_ty), boundary_check=(0, 1))
     if gating:
         p_dgk = DLOG_GK + range_n * stride_gkn
-        tl.store(p_dgk, dgk)
+        tl.store(p_dgk, dgk, mask=mask_dkv)
 
     # -- Second part: compute dq
     start_m = tl.program_id(0) * BM2
@@ -588,17 +568,18 @@ def _attn_bwd(Q, K, V, LOG_GQ, LOG_GK, M, Delta, DO, DL, DQ, DK, DV, DLOG_GQ, DL
         p_gq = tl.make_block_ptr(LOG_GQ, (M_CTX,), (stride_gqm,), (start_m,), (BM2,), (0,))
     else:
         p_gq = None
-    q = tl.load(p_q, cache_modifier=".cg")
+    q = tl.load(p_q, cache_modifier=".cg", boundary_check=(0, 1), padding_option="zero")
     if gating:
-        gq = tl.load(p_gq, cache_modifier=".cg")
+        gq = tl.load(p_gq, cache_modifier=".cg", boundary_check=(0,), padding_option="zero")
     else:
         gq = None
-    m = tl.load(M + (start_m + tl.arange(0, BM2)) * stride_mm)
+    range_m = start_m + tl.arange(0, BM2)
+    m = tl.load(M + range_m * stride_mm, mask=range_m < M_CTX, other=float("inf"))
     if norm:
-        dl_or_delta = - tl.load(Delta + (start_m + tl.arange(0, BM2)) * stride_dm, cache_modifier=".cg")
+        dl_or_delta = - tl.load(Delta + range_m * stride_dm, cache_modifier=".cg", mask=range_m < M_CTX, other=0.0)
     else:
-        dl_or_delta = tl.load(DL + (start_m + tl.arange(0, BM2)) * stride_dlm, cache_modifier=".cg")
-    do = tl.load(p_do, cache_modifier=".cg")
+        dl_or_delta = tl.load(DL + range_m * stride_dlm, cache_modifier=".cg", mask=range_m < M_CTX, other=0.0)
+    do = tl.load(p_do, cache_modifier=".cg", boundary_check=(0,1), padding_option="zero")
 
     dq = tl.zeros([BM2, DIM_QK], dtype=tl.float32)
     dgq = tl.zeros([BM2,], dtype=tl.float32)
@@ -627,10 +608,10 @@ def _attn_bwd(Q, K, V, LOG_GQ, LOG_GK, M, Delta, DO, DL, DQ, DK, DV, DLOG_GQ, DL
 
     # store dq, dgq
     p_dq = tl.make_block_ptr(DQ, (M_CTX, DIM_QK), (stride_dqm, stride_dqd), (start_m, 0), (BM2, DIM_QK), (1, 0))
-    tl.store(p_dq, dq.to(DQ.type.element_ty))
+    tl.store(p_dq, dq.to(DQ.type.element_ty), boundary_check=(0, 1))
     if gating:
         p_dgq = tl.make_block_ptr(DLOG_GQ, (M_CTX,), (stride_gqm,), (start_m,), (BM2,), (0,))
-        tl.store(p_dgq, dgq)
+        tl.store(p_dgq, dgq, boundary_check=(0,))
 
 
 class _power_attention(torch.autograd.Function):
@@ -788,7 +769,7 @@ class _power_attention(torch.autograd.Function):
             _attn_bwd_preprocess[lambda args: (triton.cdiv(t, args["BM"]), b, h)](
                 o, do, delta,
                 *o_strides, *do_strides, *delta_strides,
-                HEAD_DIM=e
+                HEAD_DIM=e, M_CTX=t
             )
 
         _attn_bwd[lambda args: (triton.cdiv(w*t, args["BN1"]), b * h)](

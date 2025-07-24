@@ -1,7 +1,10 @@
 import torch
 import triton
 import triton.language as tl
+import logging
 from typing import Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def prune_configs_by_size(configs, nargs, **kwargs):
@@ -11,22 +14,19 @@ def prune_configs_by_size(configs, nargs, **kwargs):
     for config in configs:
         # For small feature dimensions, use smaller block sizes
         block_d = config.kwargs['BLOCK_D']
-        if D <= 64 and block_d <= 128:
-            pruned_configs.append(config)
-        elif D <= 256 and block_d <= 512:
-            pruned_configs.append(config)
-        elif D > 256:
+        if block_d < D:
             pruned_configs.append(config)
     return pruned_configs if pruned_configs else configs
 
+fwd_configs = [
+    triton.Config({'BLOCK_D': BLOCK_D}, num_warps=w, num_stages=s) \
+    for w in [2, 4, 8] \
+    for s in [1, 2, 3] \
+    for BLOCK_D in [64, 128, 256, 512] \
+]
 
 @triton.autotune(
-    configs=[
-        triton.Config({'BLOCK_D': 64}, num_warps=2),
-        triton.Config({'BLOCK_D': 128}, num_warps=4),
-        triton.Config({'BLOCK_D': 256}, num_warps=8),
-        triton.Config({'BLOCK_D': 512}, num_warps=8),
-    ],
+    configs=fwd_configs,
     key=['D'],
     prune_configs_by={'early_config_prune': prune_configs_by_size},
 )
@@ -84,6 +84,19 @@ def discumsum_fwd_kernel(
         tl.store(Y_ptrs, state.to(Y_ptr.dtype.element_ty), mask=d_mask)
 
 
+bwd_configs = [
+    triton.Config({'BLOCK_D': BLOCK_D}, num_warps=w, num_stages=s) \
+    for w in [2, 4, 8] \
+    for s in [1, 2, 3] \
+    for BLOCK_D in [64, 128, 256, 512] \
+]
+
+@triton.autotune(
+    configs=bwd_configs,
+    key=['D'],
+    reset_to_zero=['dG_ptr'],
+    prune_configs_by={'early_config_prune': prune_configs_by_size},
+)
 @triton.jit
 def discumsum_bwd_kernel(
     dY_ptr, Y_ptr, log_G_ptr, dX_ptr, dG_ptr,
@@ -102,12 +115,13 @@ def discumsum_bwd_kernel(
     dX[t] = dstate
     dlog_G[t] = sum_over_d(Y[t] * dstate * exp(log_G[t]))
     """
-    # Get program IDs - process all features in one block per (batch, head)
+    # Get program IDs
     pid_b = tl.program_id(axis=0)
     pid_h = tl.program_id(axis=1)
+    pid_d = tl.program_id(axis=2)
     
-    # Process all features in this kernel
-    d_offset = tl.arange(0, BLOCK_D)
+    # Compute offsets
+    d_offset = pid_d * BLOCK_D + tl.arange(0, BLOCK_D)
     d_mask = d_offset < D
     
     # Base pointers for this batch and head
@@ -138,18 +152,18 @@ def discumsum_bwd_kernel(
         dX_ptrs = dX_base + t * stride_dX_t + d_offset * stride_dX_d
         tl.store(dX_ptrs, dstate.to(dX_ptr.dtype.element_ty), mask=d_mask)
         
-        # Compute gradient w.r.t. log_G
-        # Load Y[t] for gradient computation
+        # Compute dlog_G[t] = sum_over_d(Y[t] * dstate * g)
         Y_ptrs = Y_base + t * stride_Y_t + d_offset * stride_Y_d
         y = tl.load(Y_ptrs, mask=d_mask, other=0.0).to(tl.float32)
         
-        # Compute dlog_G contribution: Y[t] * dstate * exp(log_G[t])
+        # Compute gradient w.r.t. log_G
+        # Each feature block contributes to the same dlog_G[t]
         dg_local = y * dstate * g
         dg_sum = tl.sum(dg_local, axis=0)
         
-        # Store directly (no atomic needed since only one block per (b,h))
+        # All feature blocks contribute via atomic add
         dG_ptr = dG_base + t * stride_dG_t
-        tl.store(dG_ptr, dg_sum)
+        tl.atomic_add(dG_ptr, dg_sum)
 
 
 def discumsum_fwd_triton(X: torch.Tensor, log_G: torch.Tensor) -> torch.Tensor:
@@ -169,9 +183,7 @@ def discumsum_fwd_triton(X: torch.Tensor, log_G: torch.Tensor) -> torch.Tensor:
     # Create output tensor with +1 time dimension
     Y = torch.empty(B, T + 1, H, D, dtype=X.dtype, device=X.device)
     
-    # Grid configuration: one block per (batch, head, feature_block)
-    num_D_blocks = triton.cdiv(D, 64)  # Start with 64 as minimum block size
-    grid = (B, H, num_D_blocks)
+    grid = lambda args: (B, H, triton.cdiv(D, args["BLOCK_D"]))
     
     # Launch kernel
     discumsum_fwd_kernel[grid](
@@ -210,13 +222,8 @@ def discumsum_bwd_triton(
     # Create output tensors
     dX = torch.empty(B, T, H, D, dtype=dY.dtype, device=dY.device)
     dlog_G = torch.zeros(B, T, H, dtype=torch.float32, device=dY.device)
-
-    # Use power-of-2 block size that covers all features
-    BLOCK_D = triton.next_power_of_2(D)
     
-    # Grid: one block per (batch, head) - no feature blocking
-    grid = (B, H)
-    
+    grid = lambda args: (B, H, triton.cdiv(D, args["BLOCK_D"]))
     # Launch kernel
     discumsum_bwd_kernel[grid](
         dY, Y, log_G, dX, dlog_G,
@@ -226,9 +233,7 @@ def discumsum_bwd_triton(
         log_G.stride(0), log_G.stride(1), log_G.stride(2),
         dX.stride(0), dX.stride(1), dX.stride(2), dX.stride(3),
         dlog_G.stride(0), dlog_G.stride(1), dlog_G.stride(2),
-        BLOCK_D=BLOCK_D,
     )
-    
     return dX, dlog_G
 
 
