@@ -2,7 +2,8 @@ from functools import wraps
 import inspect
 import torch
 from flash_attn import flash_attn_func
-from power_attention.power_full import power_full, power_full_vidrial
+from power_attention import power_full
+from power_attention.vidrial import power_full as power_full_vidrial
 from power_attention.create_inputs import create_inputs as create_inputs_power
 from power_attention._expansion import expand as triton_expand, create_inputs as create_inputs_expansion
 from power_attention._attention import attention_triton, attention_cuda, create_inputs_cuda as create_inputs_attention_cuda, create_inputs as create_inputs_attention

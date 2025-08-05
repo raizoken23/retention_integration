@@ -78,7 +78,7 @@ The package includes a drop-in replacement for standard attention in transformer
 See `train/model.py` for a complete example of using power attention in a GPT-style model:
 
 ```python
-from power_attention.power_full import power_full
+from power_attention.triton import power_full
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
