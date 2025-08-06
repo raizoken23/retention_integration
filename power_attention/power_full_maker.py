@@ -195,3 +195,181 @@ def make_power_full(update_state_impl, query_state_impl, discumsum_impl, attenti
     _power_full.__doc__ = POWER_FULL_DOC
     return _power_full
 
+
+def make_power_full_fused(update_state_impl, query_state_impl, discumsum_impl, attention_impl):
+    """ Create a power_full function with the given implementations.
+    """
+    def _power_full_fused(Q, K, V, log_G=None, initial_state=None, return_final_state=False,
+                    deg=2, scale=None, chunk_size=None, switch_over_seq_len=None): # noqa: C901
+        # assert deg % 2 == 0, f'deg must be even: {deg=}'
+        _update_state = update_state_impl
+        _query_state = query_state_impl
+        _discumsum = discumsum_impl
+        _attention = attention_impl
+        
+        # Establish shapes and dtypes
+        assert Q.dtype == K.dtype == V.dtype, 'dtypes of inputs must match'
+        dtype = Q.dtype
+        b, t, hq, d = Q.shape
+        _, _, h, _ = K.shape
+        switch_over_seq_len = chunk_size if switch_over_seq_len is None else switch_over_seq_len
+        c = t if chunk_size is None else chunk_size
+        n = 1 if chunk_size is None else t // chunk_size
+        assert t % c == 0, f'{t=} not evenly divisible by {c=}'
+        gating = log_G is not None
+        scale = 1.0 / d**0.5 if scale is None else scale
+
+        # --- Simple quadratic attention ---
+        V = V.clone()
+        V[..., 0] = 1. # First feature is reserved for normalization
+        if switch_over_seq_len is None or t <= switch_over_seq_len:
+            log_G_accum = log_G.cumsum(1) if log_G is not None else None
+            return _attention(Q, K, V, log_G_accum, deg, scale=scale, norm=True)
+
+        # --- Reshape into chunks ---
+        Q = Q.view(b, n, c, hq, d)  
+        K = K.view(b, n, c, h, d)
+        V = V.view(b, n, c, h, d)
+        r = hq // h
+        if gating:
+            log_G = log_G.view(b, n, c, h)
+            log_G_intrachunk_accum = log_G.cumsum(2)
+
+        # --- Update State ---
+        if gating:
+            log_discount_weights = (log_G_intrachunk_accum.narrow(2, c-1, 1) - log_G_intrachunk_accum) / deg
+            cs_K = K * torch.exp(log_discount_weights).unsqueeze(-1).to(K.dtype)
+        else:
+            cs_K = K
+        S = _update_state(cs_K.contiguous(), V.contiguous(), deg)
+
+        # --- Accumulate ---
+        if gating:
+            log_G_chunk_sum = log_G_intrachunk_accum[:,:,-1].contiguous()
+        else:
+            log_G_chunk_sum = torch.zeros(size=(b, n, h), device=Q.device, dtype=torch.float32)
+        S = _discumsum(S, log_G_chunk_sum) # Note that this adds an empty chunk to the start of the sequence
+        S = S.narrow(1, 0, n)
+
+        # --- Merge chunks for attention ---
+        Q, K, V = map(lambda x: x.contiguous(), (Q, K, V))
+        log_G_intrachunk_accum = log_G_intrachunk_accum.contiguous() if gating else None
+
+        def make_flatbatch(x):
+            return x.view(b*n, *x.shape[2:]) if x is not None else None
+
+        # --- Compute attention ---
+        attn_Y, l_attn, rowmax = _attention(make_flatbatch(Q), make_flatbatch(K), make_flatbatch(V), make_flatbatch(log_G_intrachunk_accum), deg, scale=scale, norm=False)
+        attn_Y, l_attn, rowmax = map(lambda x: x.view(b, n, *x.shape[1:]), (attn_Y, l_attn, rowmax)) # [b, n, c, h ...]
+        # --- Gate Query for Query State ---
+        Q = Q * torch.exp(log_G_intrachunk_accum.repeat_interleave(r, dim=-1) / deg).unsqueeze(-1).to(Q.dtype) if gating else Q # type: ignore
+
+        # --- Compute Query State ---
+        Q, S, attn_Y, l_attn, rowmax = map(lambda x: x.contiguous(), (Q, S, attn_Y, l_attn, rowmax))
+        Y = _query_state(Q, S, attn_Y, l_attn, rowmax, deg, scale, zero_initial_state=True)
+
+        # Epilogue
+        out = Y.contiguous().view(b, t, hq, d).to(dtype)
+        return out
+
+    _power_full_fused.__doc__ = POWER_FULL_DOC
+    return _power_full_fused
+
+
+def make_power_full_inference(update_state_impl, query_state_impl, attention_impl):
+    """ Create a power_full inference function with the given implementations.
+    """
+    def _power_full_inference(Q, K, V, log_G=None, state=None,
+                    deg=2, scale=None, chunk_size=None, switch_over_seq_len=512) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """
+        Implements an efficient inference kernel for power attention, mathematically expressed as:
+
+        $$
+        y = q ⋅ S + (\phi(q) ⋅ \phi(K)^T) ⋅ V \\
+        S = \begin{cases}
+            S + \phi(K)^T ⋅ V & \text{if } \text{seq\_len} = \text{chunk\_size} \\
+            S & \text{otherwise}
+        \end{cases} \\
+        $$
+        where $S \in \mathbb{R}^{D \times d}$ is the state, $q \in \mathbb{R}^{1 \times d}$ is the query, $K \in \mathbb{R}^{seq_len \times d}$ is the key, $V \in \mathbb{R}^{seq_len \times d}$ is the value, and $\phi$ is the symmetric power embedding. An optional gating factor $log_G$ is exponentiated and applied to the attention scores and state.
+        
+
+        Args:
+            Q: Query tensor of shape `(batch_size, 1, num_q_heads, head_dim)`.
+            K: Key tensor of shape `(batch_size, seq_len, num_kv_heads, head_dim)`.
+            V: Value tensor of shape `(batch_size, seq_len, num_kv_heads, head_dim)`.
+            log_G: Optional log gating factors of shape `(batch_size, seq_len, num_kv_heads)`.
+            state: Optional state for recurrent processing, of shape `(batch_size, num_kv_heads, D, head_dim)`.
+            deg: Power attention degree.
+            scale: Scale factor for attention weights. Defaults to 1.0.
+            chunk_size: The size of cache sequence above which a state update is performed. If None, no state update other than gating is performed.
+
+        Returns:
+            output: Output tensor of shape `(batch_size, 1, num_q_heads, head_dim)`.
+            state: Updated state tensor of shape `(batch_size, num_kv_heads, D, head_dim)`. 
+        """
+        _update_state = update_state_impl
+        _query_state = query_state_impl
+        _attention = attention_impl
+        
+        # Establish shapes and dtypes
+        has_cache = K is not None and V is not None
+        assert has_cache or state is not None, 'state or cache must be provided for inference'
+        assert not has_cache or Q.dtype == K.dtype == V.dtype, 'dtypes of inputs must match'
+        assert not has_cache or Q.shape[0] == K.shape[0] == V.shape[0], 'batch sizes of inputs must match'
+        assert Q.shape[1] == 1, 'query must have a seq_len of 1 for inference kernel'
+        assert not has_cache or K.shape[1] == V.shape[1], 'key and value must have the same seq_len'
+        assert chunk_size is None or not has_cache or K.shape[1] <= max(switch_over_seq_len, chunk_size), 'key and value must have a seq_len <= max(switch_over_seq_len, chunk_size)'
+        assert state is None or not has_cache or state.shape[0] == K.shape[0], 'state must have a batch size of the same as the key'
+        assert state is None or not has_cache or state.shape[1] == K.shape[2], 'state must have the same number of kv heads as the key'
+        assert log_G is None or not has_cache or (log_G.shape[:3] == K.shape[:3]), 'log_gating must have a batch size, seq_len, and head count of the same as the key'
+
+        # Defaults and constants
+        b, _, hq, d = Q.shape
+        if K is not None:
+            _, tk, hk, _, e = *K.shape, V.shape[-1]
+        else:
+            assert state is not None, 'state or cache must be provided for inference'
+            tk, hk, e = 0, state.shape[1], state.shape[-1]
+        scale = 1.0 / d**0.5 if scale is None else scale
+
+        if has_cache:
+            V = V.clone()
+            V[..., 0] = 1. # First feature is reserved for normalization
+        # --- Query Cache + Query State ---
+        log_G_accum = log_G.cumsum(1) if log_G is not None else None
+        r, w = hq // hk, 1
+        if state is None and 0 < tk <= switch_over_seq_len:
+            Y = _attention(Q, K, V, log_G_accum, deg, scale=scale, norm=True) # [b, 1, hq, e]
+        else:
+            assert state.shape[0] == b, 'state must have a batch size of the same as the query' # type: ignore
+            assert state.shape[1] == hk, 'state must have the same number of kv heads as the key' # type: ignore
+            if tk > 0:
+                attn_Y, l_attn, rowmax = _attention(Q, K, V, log_G_accum, deg, scale=scale, norm=False) # [b, 1, hq, e], [b, 1, hq], [b, 1, hq]
+            else:
+                attn_Y, l_attn, rowmax = None, None, None
+            if log_G_accum is not None:
+                Q = Q * torch.exp(log_G_accum.narrow(1, -1, 1) / deg).repeat_interleave(r, dim=-1).unsqueeze(-1).to(Q.dtype) # discount the query when querying the state, since it's cheaper than discounting the state
+            Y = _query_state(Q, state, attn_Y, l_attn, rowmax, deg, scale, zero_initial_state=False) # [b, 1, hq, e]
+
+        # --- Optionally Compress Cache into State ---
+        if tk > switch_over_seq_len and chunk_size is not None and tk % chunk_size == 0:
+            if log_G_accum is not None:
+                log_discount_weights = (log_G_accum.narrow(1, -1, 1) - log_G_accum) / deg
+                K = K * torch.exp(log_discount_weights).unsqueeze(-1).to(K.dtype)
+            state_update = _update_state(K.contiguous(), V.contiguous(), deg)
+            if state is None:
+                new_state = state_update
+            elif log_G_accum is None:
+                new_state = state + state_update
+            else:
+                new_state = state * torch.exp(log_G_accum[:, -1, :]).unsqueeze(-1).unsqueeze(-1).to(state.dtype) + state_update
+        else:
+            new_state = state
+
+        return Y, new_state
+
+    
+
+    _power_full_inference.__doc__ = POWER_FULL_DOC
+    return _power_full_inference
