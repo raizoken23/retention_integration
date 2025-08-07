@@ -208,18 +208,19 @@ def _query_state_normalize_bwd_preprocess(O, DO, Delta,  #
                          stride_ob, stride_om, stride_oh, stride_oe, #
                          stride_dob, stride_dom, stride_doh, stride_doe, #
                          stride_db, stride_dm, stride_dh, #
-                         BM: tl.constexpr, HEAD_DIM: tl.constexpr  #
+                         c, BM: tl.constexpr, HEAD_DIM: tl.constexpr  #
                          ):
     range_m = tl.program_id(0) * BM + tl.arange(0, BM)
     off_b = tl.program_id(1)
     off_h = tl.program_id(2)
     off_n = tl.arange(0, HEAD_DIM)
+    mask = range_m < c
     # load
-    o = tl.load(O + off_b * stride_ob + off_h * stride_oh + range_m[:, None] * stride_om + off_n[None, :] * stride_oe, cache_modifier=".cg").to(tl.float32)
-    do = tl.load(DO + off_b * stride_dob + off_h * stride_doh + range_m[:, None] * stride_dom + off_n[None, :] * stride_doe, cache_modifier=".cg").to(tl.float32)
+    o = tl.load(O + off_b * stride_ob + off_h * stride_oh + range_m[:, None] * stride_om + off_n[None, :] * stride_oe, cache_modifier=".cg", mask=mask[:, None], other=0.).to(tl.float32)
+    do = tl.load(DO + off_b * stride_dob + off_h * stride_doh + range_m[:, None] * stride_dom + off_n[None, :] * stride_doe, cache_modifier=".cg", mask=mask[:, None], other=0.).to(tl.float32)
     delta = tl.sum(o * do, axis=1)
     # write-back
-    tl.store(Delta + off_b * stride_db + off_h * stride_dh + range_m * stride_dm, delta)
+    tl.store(Delta + off_b * stride_db + off_h * stride_dh + range_m * stride_dm, delta, mask=mask)
 
 
 
@@ -325,7 +326,7 @@ class _query_state_normalize(torch.autograd.Function):
             *O.stride(),
             *dO.stride(),
             *delta.stride(),
-            HEAD_DIM=e
+            c=c, HEAD_DIM=e
         )
 
         # --- compute dQ and dY_attn and dl_attn ---
