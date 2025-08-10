@@ -24,12 +24,6 @@ def keep(conf):
         return False
     return True
 
-def prune_fwd_configs(configs, nargs, **kwargs):
-    pruned_configs = []
-    for config in configs:
-        if config.kwargs["BM"] % kwargs["r"] == 0 and config.kwargs["BN"] % kwargs["w"] == 0:
-            pruned_configs.append(config)
-    return pruned_configs
 
 @triton.jit
 def _power(a, deg: tl.constexpr):
@@ -116,7 +110,7 @@ def _attn_fwd_inner(acc, l_i, m_i, q, gq, p_k, p_gk, p_v, #
     return acc, l_i, m_i
 
 
-@triton.autotune(list(filter(keep, fwd_configs)), key=["M_CTX", "N_CTX", "DIM_QK", "DIM_VO", "r", "w", "gating", "deg", "norm"], prune_configs_by={'early_config_prune': prune_fwd_configs})
+@triton.autotune(list(filter(keep, fwd_configs)), key=["M_CTX", "N_CTX", "DIM_QK", "DIM_VO", "r", "w", "gating", "deg", "norm"])
 @triton.jit
 def _attn_fwd(Q, K, V, LOG_GQ, LOG_GK, L, M, Out,  #
               stride_qb, stride_qh, stride_qm, stride_qd,  #
@@ -131,8 +125,6 @@ def _attn_fwd(Q, K, V, LOG_GQ, LOG_GK, L, M, Out,  #
               deg: tl.constexpr, scale: tl.constexpr, gating: tl.constexpr,  #
               DIM_QK: tl.constexpr, DIM_VO: tl.constexpr, STAGE: tl.constexpr,  #
               norm: tl.constexpr, use_log2: tl.constexpr, BM: tl.constexpr, BN: tl.constexpr):
-    tl.static_assert(BM % r == 0, "BM must be divisible by r")
-    tl.static_assert(BN % w == 0, "BN must be divisible by w")
     start_m = tl.program_id(0)
     off_bh = tl.program_id(1)
     off_b = off_bh // H
@@ -673,7 +665,6 @@ class _power_attention(torch.autograd.Function):
             b, hq, tq, d, hk, tk, e = *Q.shape, K.shape[1], K.shape[2], V.shape[-1]
         else:
             b, tq, hq, d, tk, hk, e = *Q.shape, K.shape[1], K.shape[2], V.shape[-1]
-        assert r & (r - 1) == 0, "r must be a power of 2"
         assert w == 1, "w must be 1"
         assert hq % r == 0, "hq must be divisible by r"
         assert hk % w == 0, "hk must be divisible by w"

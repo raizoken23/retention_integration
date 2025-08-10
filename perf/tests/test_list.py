@@ -269,7 +269,7 @@ power_full_inference_param_ranges = {
     't': [1, 64, 128],
     'h': [2],
     'd': [32, 64],
-    'qhead_ratio': [1, 8],
+    'qhead_ratio': [1, 12],
     'dtype': [torch.bfloat16],
     'device': ['cuda'],
     'gating': [True],
