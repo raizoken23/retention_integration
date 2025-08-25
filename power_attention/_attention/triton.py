@@ -691,9 +691,9 @@ class _power_attention(torch.autograd.Function):
                 log_GK = None
                 gq_strides = (0, 0, 0)
                 gk_strides = (0, 0, 0)
-            Q = Q.view(b, h, tq * r, d)
-            K = K.view(b, h, tk * w, d)
-            V = V.view(b, h, tk * w, e)
+            Q = Q.view(b, h, r, tq, d).transpose(2, 3).reshape(b, h, tq * r, d)
+            K = K.view(b, h, w, tk, d).transpose(2, 3).reshape(b, h, tk * w, d)
+            V = V.view(b, h, w, tk, e).transpose(2, 3).reshape(b, h, tk * w, e)
             rowmax = torch.empty((b, h, tq * r), device=Q.device, dtype=torch.float32)
             l = torch.empty((b, h, tq * r), device=Q.device, dtype=torch.float32)
             q_strides = (Q.stride(0), Q.stride(1), Q.stride(2), Q.stride(3))
@@ -715,9 +715,9 @@ class _power_attention(torch.autograd.Function):
                 log_GK = None
                 gq_strides = (0, 0, 0)
                 gk_strides = (0, 0, 0)
-            Q = Q.view(b, tq * r, h, d)
-            K = K.view(b, tk * w, h, d)
-            V = V.view(b, tk * w, h, e)
+            Q = Q.view(b, tq, h, r, d).transpose(2, 3).reshape(b, tq * r, h, d)
+            K = K.view(b, tk, h, w, d).transpose(2, 3).reshape(b, tk * w, h, d)
+            V = V.view(b, tk, h, w, e).transpose(2, 3).reshape(b, tk * w, h, e)
             rowmax = torch.empty((b, tq * r, h), device=Q.device, dtype=torch.float32)
             l = torch.empty((b, tq * r, h), device=Q.device, dtype=torch.float32)
             q_strides = (Q.stride(0), Q.stride(2), Q.stride(1), Q.stride(3))
@@ -733,9 +733,11 @@ class _power_attention(torch.autograd.Function):
         _attn_fwd[grid](
             Q, K, V, log_GQ, log_GK, l, rowmax, o, *q_strides, *k_strides, *v_strides, *rowmax_strides, *gq_strides, *gk_strides, *o_strides, *l_strides,
             H=h, M_CTX=tq*r, N_CTX=tk*w, r=r, w=w, deg=deg, scale=scale, gating=gating, DIM_QK=d, DIM_VO=e, STAGE=stage, norm=norm, use_log2=use_log2)
-        o = o.view(b, hq, tq, e) if head_first else o.view(b, tq, hq, e)
-        l = l.view(b, hq, tq) if head_first else l.view(b, tq, hq)
-        rowmax = rowmax.view(b, hq, tq) if head_first else rowmax.view(b, tq, hq)
+
+        o = o.view(b, h, tq, r, e).transpose(2, 3).reshape(b, hq, tq, e) if head_first else o.view(b, tq, r, h, e).transpose(2, 3).reshape(b, tq, hq, e)
+        l = l.view(b, h, tq, r).transpose(2, 3).reshape(b, hq, tq) if head_first else l.view(b, tq, r, h).transpose(2, 3).reshape(b, tq, hq)
+        rowmax = rowmax.view(b, h, tq, r).transpose(2, 3).reshape(b, hq, tq) if head_first else rowmax.view(b, tq, r, h).transpose(2, 3).reshape(b, tq, hq)
+
         ctx.save_for_backward(Q, K, V, l, rowmax, o, log_GQ, log_GK)
         ctx.b = b
         ctx.h = h
@@ -782,17 +784,19 @@ class _power_attention(torch.autograd.Function):
         delta = torch.empty_like(rowmax) if norm else torch.empty((0, 0, 0))
 
         if ctx.head_first:
-            do = do.reshape(b, h, tq*r, e)
-            o = o.reshape(b, h, tq*r, e)
-            dl = dl.reshape(b, h, tq*r)
-            delta = delta.reshape(b, h, tq*r) if norm else delta
+            do = do.reshape(b, h, r, tq, e).transpose(2, 3).reshape(b, h, tq * r, e)
+            o = o.reshape(b, h, r, tq, e).transpose(2, 3).reshape(b, h, tq * r, e)
+            dl = dl.reshape(b, h, r, tq).transpose(2, 3).reshape(b, h, tq * r)
+            delta = delta.reshape(b, h, r, tq).transpose(2, 3).reshape(b, h, tq * r) if norm else delta
+            rowmax = rowmax.reshape(b, h, r, tq).transpose(2, 3).reshape(b, h, tq * r)
             do_strides, dQ_strides, dK_strides, dV_strides, o_strides = map(lambda x: (x.stride(0), x.stride(1), x.stride(2), x.stride(3)), (do, dQ, dK, dV, o))
             dl_strides, delta_strides = map(lambda x: (x.stride(0), x.stride(1), x.stride(2)), (dl, delta))
         else:
-            do = do.reshape(b, tq*r, h, e)
-            o = o.reshape(b, tq*r, h, e)
-            dl = dl.reshape(b, tq*r, h)
-            delta = delta.reshape(b, tq*r, h) if norm else delta
+            do = do.reshape(b, tq, h, r, e).transpose(2, 3).reshape(b, tq*r, h, e)
+            o = o.reshape(b, tq, h, r, e).transpose(2, 3).reshape(b, tq*r, h, e)
+            dl = dl.reshape(b, tq, h, r).transpose(2, 3).reshape(b, tq*r, h)
+            delta = delta.reshape(b, tq, h, r).transpose(2, 3).reshape(b, tq*r, h) if norm else delta
+            rowmax = rowmax.reshape(b, tq, h, r).transpose(2, 3).reshape(b, tq * r, h)
             do_strides, dQ_strides, dK_strides, dV_strides, o_strides = map(lambda x: (x.stride(0), x.stride(2), x.stride(1), x.stride(3)), (do, dQ, dK, dV, o))
             dl_strides, delta_strides = map(lambda x: (x.stride(0), x.stride(2), x.stride(1)), (dl, delta))
 
@@ -818,19 +822,19 @@ class _power_attention(torch.autograd.Function):
             *gq_strides, *gk_strides,
             H=h, M_CTX=tq*r, N_CTX=tk*w, r=r, w=w, deg=deg, scale=scale, gating=gating, DIM_QK=d, DIM_VO=e, STAGE=stage, norm=norm, use_log2=use_log2)
         if gating:
-            # TODO(sean): when w>1, the following is incorrect, but we also need to change the way gating works 
+            # TODO(sean): when w>1, the following is incorrect, and we also need to change the way gating works 
             assert hk == h, "assuming hk == h"
             if ctx.head_first:
                 dlog_G = dlog_GK.view(b, h, tk, w).transpose(2, 3).view(b, hk, tk).contiguous()
                 dlog_G[:, :, -tq:] += dlog_GQ.view(b, h, tq, r).sum(dim=-1)
             else:
-                dlog_G = dlog_GK.view(b, tk, w, h).view(b, tk, hk)
+                dlog_G = dlog_GK.view(b, tk, w, h).transpose(2, 3).view(b, tk, hk)
                 dlog_G[:, -tq:, :] += dlog_GQ.view(b, tq, r, h).sum(dim=-2)
         else:
             dlog_G = None
-        dQ = dQ.view(b, hq, tq, d) if ctx.head_first else dQ.view(b, tq, hq, d)
-        dK = dK.view(b, hk, tk, d) if ctx.head_first else dK.view(b, tk, hk, d)
-        dV = dV.view(b, hk, tk, e) if ctx.head_first else dV.view(b, tk, hk, e)
+        dQ = dQ.view(b, h, tq, r, d).transpose(2, 3).reshape(b, hq, tq, d) if ctx.head_first else dQ.view(b, tq, r, h, d).transpose(2, 3).reshape(b, tq, hq, d)
+        dK = dK.view(b, h, tk, w, d).transpose(2, 3).reshape(b, hk, tk, d) if ctx.head_first else dK.view(b, tk, w, h, d).transpose(2, 3).reshape(b, tk, hk, d)
+        dV = dV.view(b, h, tk, w, e).transpose(2, 3).reshape(b, hk, tk, e) if ctx.head_first else dV.view(b, tk, w, h, e).transpose(2, 3).reshape(b, tk, hk, e)
         return dQ, dK, dV, dlog_G, None, None, None, None, None, None, None, None
 
 def _attention_fn(Q, K, V, log_G, deg, causal=True, head_first=False, scale=1.0, norm=False, use_log2=False):

@@ -26,6 +26,28 @@ def create_inputs(b=2, t=1024, h=8, d=32, qhead_ratio=1, dtype=torch.bfloat16, d
                 deg=deg, scale=scale,
                 chunk_size=chunk_size)
 
+def create_vidrial_inputs(b=2, t=1024, h=8, d=32, qhead_ratio=1, dtype=torch.bfloat16, device='cuda', gating=False,
+                  chunk_size=None, deg=2, requires_grad=False, seed=42, scale=1.0, switch_over_seq_len=None):
+    torch.manual_seed(seed)
+    Q = torch.randn(size=(b, t, h * qhead_ratio, d), dtype=dtype, device=device)
+    K = torch.randn(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
+    V = torch.randn(size=(b, t, h, d), dtype=dtype, device=device) / math.sqrt(d)
+    if gating:
+        log_G = F.logsigmoid(torch.randn(size=(b, t, h), dtype=torch.float32, device=device))
+    else:
+        log_G = None
+    initial_state = None
+    if requires_grad:
+        Q, K, V, log_G, initial_state = tree_map(
+            lambda x: x.clone().detach().requires_grad_(True) if x is not None else None, (Q, K, V, log_G, initial_state))
+    return dict(Q=Q, K=K, V=V, log_G=log_G, 
+                initial_state=initial_state,
+                return_final_state=False,
+                deg=deg, scale=scale,
+                chunk_size=chunk_size,
+                switch_over_seq_len=switch_over_seq_len)
+
+
 def create_inference_inputs(b=2, t=1024, h=8, d=32, qhead_ratio=1, dtype=torch.bfloat16, device='cuda', gating=False,
                   chunk_size=None, deg=2, requires_grad=False, seed=42, scale=1.0, initial_state=False, switch_over_seq_len=512):
     torch.manual_seed(seed)
@@ -38,12 +60,12 @@ def create_inference_inputs(b=2, t=1024, h=8, d=32, qhead_ratio=1, dtype=torch.b
     else:
         log_G = None
     D = sympow_dim(d, deg, d_tile=default_d_tile(d, deg))
-    state = None if not initial_state else torch.randn(size=(b, h, D, d), dtype=dtype, device=device)
+    initial_state = None if not initial_state else torch.randn(size=(b, h, D, d), dtype=dtype, device=device)
     if requires_grad:
-        Q, K, V, log_G, state = tree_map(
-            lambda x: x.clone().detach().requires_grad_(True) if x is not None else None, (Q, K, V, log_G, state))
+        Q, K, V, log_G, initial_state = tree_map(
+            lambda x: x.clone().detach().requires_grad_(True) if x is not None else None, (Q, K, V, log_G, initial_state))
     return dict(Q=Q, K=K, V=V, log_G=log_G, 
-                state=state,
+                initial_state=initial_state,
                 deg=deg, scale=scale,
                 chunk_size=chunk_size,
                 switch_over_seq_len=switch_over_seq_len)

@@ -28,13 +28,13 @@ def attention(Q, K, V, log_G, deg, causal=True, head_first=False, scale=1.0, nor
             log_GK = log_GK.transpose(1, 2) # (b, h, ctx_k)
         log_GQ = log_GK[..., -ctx_q:]
     if head_first:
-        Q = Q.view(b, h, r *ctx_q, d)
-        K = K.view(b, h, w * ctx_k, d)
-        V = V.view(b, h, w * ctx_k, e)
+        Q = Q.view(b, h, r, ctx_q, d).transpose(2, 3).reshape(b, h, ctx_q * r, d)
+        K = K.view(b, h, w, ctx_k, d).transpose(2, 3).reshape(b, h, ctx_k * w, d)
+        V = V.view(b, h, w, ctx_k, e).transpose(2, 3).reshape(b, h, ctx_k * w, e)
     else:
-        Q = Q.view(b, ctx_q * r, h, d).transpose(1, 2)
-        K = K.view(b, ctx_k * w, h, d).transpose(1, 2)
-        V = V.view(b, ctx_k * w, h, e).transpose(1, 2)
+        Q = Q.view(b, ctx_q, h, r, d).permute(0, 2, 1, 3, 4).reshape(b, h, ctx_q * r, d)
+        K = K.view(b, ctx_k, h, w, d).permute(0, 2, 1, 3, 4).reshape(b, h, ctx_k * w, d)
+        V = V.view(b, ctx_k, h, w, e).permute(0, 2, 1, 3, 4).reshape(b, h, ctx_k * w, e)
     
     exp = torch.exp if not use_log2 else torch.exp2
     log = torch.log if not use_log2 else torch.log2
@@ -51,7 +51,7 @@ def attention(Q, K, V, log_G, deg, causal=True, head_first=False, scale=1.0, nor
     if deg % 2 == 0:
         p = exp(s - rowmax).to(V.dtype)
     else:
-        p = exp(s - rowmax).to(V.dtype) * signs
+        p = exp(s - rowmax).to(V.dtype) * signs # [b, h, r * ctx_q, ctx_k]
     l = (torch.sum(p, dim=-1).to(torch.float32) + 1e-6) # [b, h, ctx_q]
     o = torch.matmul(p, V) # [b, h, ctx_q, e]
     rowmax = rowmax # [b, h, ctx_q]
@@ -61,9 +61,9 @@ def attention(Q, K, V, log_G, deg, causal=True, head_first=False, scale=1.0, nor
         o = o.view(b, hq, ctx_q, e)
         rowmax = rowmax.view(b, hq, ctx_q)
     else:
-        l = l.view(b, h, ctx_q, r).permute(0, 2, 3, 1).reshape(b, ctx_q, hq)
-        o = o.view(b, h, ctx_q, r, e).permute(0, 2, 3, 1, 4).reshape(b, ctx_q, hq, e)
-        rowmax = rowmax.view(b, h, ctx_q, r).permute(0, 2, 3, 1).reshape(b, ctx_q, hq)
+        l = l.view(b, h, ctx_q, r).permute(0, 2, 1, 3).reshape(b, ctx_q, hq)
+        o = o.view(b, h, ctx_q, r, e).permute(0, 2, 1, 3, 4).reshape(b, ctx_q, hq, e)
+        rowmax = rowmax.view(b, h, ctx_q, r).permute(0, 2, 1, 3).reshape(b, ctx_q, hq)
     if norm:
         return (o / l[..., None]).to(V.dtype)
     return o, l, rowmax.to(torch.float32)

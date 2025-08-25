@@ -279,7 +279,7 @@ def make_power_full_fused(update_state_impl, query_state_impl, discumsum_impl, a
 def make_power_full_inference(update_state_impl, query_state_impl, attention_impl):
     """ Create a power_full inference function with the given implementations.
     """
-    def _power_full_inference(Q, K, V, log_G=None, state=None,
+    def _power_full_inference(Q, K, V, log_G=None, initial_state=None,
                     deg=2, scale=None, chunk_size=None, switch_over_seq_len=512) -> tuple[torch.Tensor, torch.Tensor | None]:
         """
         Implements an efficient inference kernel for power attention, mathematically expressed as:
@@ -291,7 +291,7 @@ def make_power_full_inference(update_state_impl, query_state_impl, attention_imp
             S & \text{otherwise}
         \end{cases} \\
         $$
-        where $S \in \mathbb{R}^{D \times d}$ is the state, $q \in \mathbb{R}^{1 \times d}$ is the query, $K \in \mathbb{R}^{seq_len \times d}$ is the key, $V \in \mathbb{R}^{seq_len \times d}$ is the value, and $\phi$ is the symmetric power embedding. An optional gating factor $log_G$ is exponentiated and applied to the attention scores and state.
+        where $S \in \mathbb{R}^{D \times d}$ is the initial_state, $q \in \mathbb{R}^{1 \times d}$ is the query, $K \in \mathbb{R}^{seq_len \times d}$ is the key, $V \in \mathbb{R}^{seq_len \times d}$ is the value, and $\phi$ is the symmetric power embedding. An optional gating factor $log_G$ is exponentiated and applied to the attention scores and initial_state.
         
 
         Args:
@@ -299,14 +299,14 @@ def make_power_full_inference(update_state_impl, query_state_impl, attention_imp
             K: Key tensor of shape `(batch_size, seq_len, num_kv_heads, head_dim)`.
             V: Value tensor of shape `(batch_size, seq_len, num_kv_heads, head_dim)`.
             log_G: Optional log gating factors of shape `(batch_size, seq_len, num_kv_heads)`.
-            state: Optional state for recurrent processing, of shape `(batch_size, num_kv_heads, D, head_dim)`.
+            initial_state: Optional initial_state for recurrent processing, of shape `(batch_size, num_kv_heads, D, head_dim)`.
             deg: Power attention degree.
             scale: Scale factor for attention weights. Defaults to 1.0.
-            chunk_size: The size of cache sequence above which a state update is performed. If None, no state update other than gating is performed.
+            chunk_size: The size of cache sequence above which a initial_state update is performed. If None, no initial_state update other than gating is performed.
 
         Returns:
             output: Output tensor of shape `(batch_size, 1, num_q_heads, head_dim)`.
-            state: Updated state tensor of shape `(batch_size, num_kv_heads, D, head_dim)`. 
+            initial_state: Updated initial_state tensor of shape `(batch_size, num_kv_heads, D, head_dim)`. 
         """
         _update_state = update_state_impl
         _query_state = query_state_impl
@@ -314,14 +314,14 @@ def make_power_full_inference(update_state_impl, query_state_impl, attention_imp
         
         # Establish shapes and dtypes
         has_cache = K is not None and V is not None
-        assert has_cache or state is not None, 'state or cache must be provided for inference'
+        assert has_cache or initial_state is not None, 'initial_state or cache must be provided for inference'
         assert not has_cache or Q.dtype == K.dtype == V.dtype, 'dtypes of inputs must match'
         assert not has_cache or Q.shape[0] == K.shape[0] == V.shape[0], 'batch sizes of inputs must match'
         assert Q.shape[1] == 1, 'query must have a seq_len of 1 for inference kernel'
         assert not has_cache or K.shape[1] == V.shape[1], 'key and value must have the same seq_len'
         assert chunk_size is None or not has_cache or K.shape[1] <= max(switch_over_seq_len, chunk_size), 'key and value must have a seq_len <= max(switch_over_seq_len, chunk_size)'
-        assert state is None or not has_cache or state.shape[0] == K.shape[0], 'state must have a batch size of the same as the key'
-        assert state is None or not has_cache or state.shape[1] == K.shape[2], 'state must have the same number of kv heads as the key'
+        assert initial_state is None or not has_cache or initial_state.shape[0] == K.shape[0], 'initial_state must have a batch size of the same as the key'
+        assert initial_state is None or not has_cache or initial_state.shape[1] == K.shape[2], 'initial_state must have the same number of kv heads as the key'
         assert log_G is None or not has_cache or (log_G.shape[:3] == K.shape[:3]), 'log_gating must have a batch size, seq_len, and head count of the same as the key'
 
         # Defaults and constants
@@ -329,8 +329,8 @@ def make_power_full_inference(update_state_impl, query_state_impl, attention_imp
         if K is not None:
             _, tk, hk, _, e = *K.shape, V.shape[-1]
         else:
-            assert state is not None, 'state or cache must be provided for inference'
-            tk, hk, e = 0, state.shape[1], state.shape[-1]
+            assert initial_state is not None, 'initial_state or cache must be provided for inference'
+            tk, hk, e = 0, initial_state.shape[1], initial_state.shape[-1]
         scale = 1.0 / d**0.5 if scale is None else scale
 
         if has_cache:
@@ -339,18 +339,18 @@ def make_power_full_inference(update_state_impl, query_state_impl, attention_imp
         # --- Query Cache + Query State ---
         log_G_accum = log_G.cumsum(1) if log_G is not None else None
         r, w = hq // hk, 1
-        if state is None and 0 < tk <= switch_over_seq_len:
+        if initial_state is None and 0 < tk <= switch_over_seq_len:
             Y = _attention(Q, K, V, log_G_accum, deg, scale=scale, norm=True) # [b, 1, hq, e]
         else:
-            assert state.shape[0] == b, 'state must have a batch size of the same as the query' # type: ignore
-            assert state.shape[1] == hk, 'state must have the same number of kv heads as the key' # type: ignore
+            assert initial_state.shape[0] == b, 'initial_state must have a batch size of the same as the query' # type: ignore
+            assert initial_state.shape[1] == hk, 'initial_state must have the same number of kv heads as the key' # type: ignore
             if tk > 0:
                 attn_Y, l_attn, rowmax = _attention(Q, K, V, log_G_accum, deg, scale=scale, norm=False) # [b, 1, hq, e], [b, 1, hq], [b, 1, hq]
             else:
                 attn_Y, l_attn, rowmax = None, None, None
             if log_G_accum is not None:
-                Q = Q * torch.exp(log_G_accum.narrow(1, -1, 1) / deg).repeat_interleave(r, dim=-1).unsqueeze(-1).to(Q.dtype) # discount the query when querying the state, since it's cheaper than discounting the state
-            Y = _query_state(Q, state, attn_Y, l_attn, rowmax, deg, scale, zero_initial_state=False) # [b, 1, hq, e]
+                Q = Q * torch.exp(log_G_accum.narrow(1, -1, 1) / deg).repeat_interleave(r, dim=-1).unsqueeze(-1).to(Q.dtype) # discount the query when querying the initial_state, since it's cheaper than discounting the initial_state
+            Y = _query_state(Q, initial_state, attn_Y, l_attn, rowmax, deg, scale, zero_initial_state=False) # [b, 1, hq, e]
 
         # --- Optionally Compress Cache into State ---
         if tk > switch_over_seq_len and chunk_size is not None and tk % chunk_size == 0:
@@ -358,14 +358,14 @@ def make_power_full_inference(update_state_impl, query_state_impl, attention_imp
                 log_discount_weights = (log_G_accum.narrow(1, -1, 1) - log_G_accum) / deg
                 K = K * torch.exp(log_discount_weights).unsqueeze(-1).to(K.dtype)
             state_update = _update_state(K.contiguous(), V.contiguous(), deg)
-            if state is None:
+            if initial_state is None:
                 new_state = state_update
             elif log_G_accum is None:
-                new_state = state + state_update
+                new_state = initial_state + state_update
             else:
-                new_state = state * torch.exp(log_G_accum[:, -1, :]).unsqueeze(-1).unsqueeze(-1).to(state.dtype) + state_update
+                new_state = initial_state * torch.exp(log_G_accum[:, -1, :]).unsqueeze(-1).unsqueeze(-1).to(initial_state.dtype) + state_update
         else:
-            new_state = state
+            new_state = initial_state
 
         return Y, new_state
 
