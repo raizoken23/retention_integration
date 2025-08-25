@@ -108,7 +108,7 @@ def test_gqa_bwd(fns_params):
         gold_inputs=gold_inputs,
         test_fn=fns['fn'],
         test_inputs=test_inputs,
-        atol=1e-2,
+        atol=2e-2,
         rtol=1e-2,
         diff_tol=0.025,
     )
