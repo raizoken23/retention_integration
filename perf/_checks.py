@@ -258,6 +258,17 @@ def check_inputs_backwards_match(*, fn, inputs1, inputs2, atol=None, rtol=None):
     sanity_check_tensors([grads1, grads2])
     check_allclose(grads1, grads2, atol=atol, rtol=rtol)
 
+def diff_tensors(tensor_or_tensors1, tensor_or_tensors2, rtol, atol):
+    """Print the distribution of a tensor or tensors."""
+    if isinstance(tensor_or_tensors1, torch.Tensor):
+        diff(tensor_or_tensors1, tensor_or_tensors2, rtol=rtol, atol=atol, assert_close=False, verbose=True)
+    elif isinstance(tensor_or_tensors1, (list, tuple)):
+        for i, (t1, t2) in enumerate(zip(tensor_or_tensors1, tensor_or_tensors2)):
+            diff(t1, t2, rtol=rtol, atol=atol, assert_close=False, verbose=True, title=f"Tensor {i+1}/{len(tensor_or_tensors1)}")
+    elif isinstance(tensor_or_tensors1, dict):
+        for key in tensor_or_tensors1:
+            diff(tensor_or_tensors1[key], tensor_or_tensors2[key], rtol=rtol, atol=atol, assert_close=False, verbose=True, title=f"Tensor {key}")
+
 def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0., diff_tol=None):
     """Given two functions, check that they produce the same output for the same inputs.
 
@@ -359,6 +370,8 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
     try:
         check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
     except AssertionError as e:
+        diff_tensors(gold_grads, ref_grads, rtol, atol)
+        diff_tensors(gold_grads, test_grads, rtol, atol)
         violation_pct = get_violation_pct(gold_grads, ref_grads, test_grads, tol=rtol, atol=atol)
         if diff_tol is not None and violation_pct < diff_tol:
             return

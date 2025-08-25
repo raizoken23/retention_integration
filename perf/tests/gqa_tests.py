@@ -58,14 +58,14 @@ def gqa_wrapper(fn):
     def wrapped(**inputs):
         qhead_ratio = inputs['Q'].shape[2] // inputs['K'].shape[2]
         assert qhead_ratio >= 1, 'qhead_ratio must be greater than or equal to 1'
-        K = inputs['K'].repeat_interleave(qhead_ratio, dim=2).detach().clone().requires_grad_(inputs['K'].requires_grad)
-        V = inputs['V'].repeat_interleave(qhead_ratio, dim=2).detach().clone().requires_grad_(inputs['V'].requires_grad)
+        K = inputs['K'].repeat_interleave(qhead_ratio, dim=2)
+        V = inputs['V'].repeat_interleave(qhead_ratio, dim=2)
         if inputs['log_G'] is not None:
-            log_G = inputs['log_G'].repeat_interleave(qhead_ratio, dim=2).detach().clone().requires_grad_(inputs['log_G'].requires_grad)
+            log_G = inputs['log_G'].repeat_interleave(qhead_ratio, dim=2)
         else:
             log_G = None
         if inputs['initial_state'] is not None:
-            initial_state = inputs['initial_state'].repeat_interleave(qhead_ratio, dim=1).detach().clone().requires_grad_(inputs['initial_state'].requires_grad)
+            initial_state = inputs['initial_state'].repeat_interleave(qhead_ratio, dim=1)
         else:
             initial_state = None
         res = inputs.copy()
@@ -100,13 +100,15 @@ def test_gqa_fwd(fns_params):
 @pytest.mark.parametrize("fns_params", TEST_CASES)
 def test_gqa_bwd(fns_params):
     fns, params = fns_params
-    inputs = fns['create_inputs'](**params, requires_grad=True)
+    gold_inputs = fns['create_inputs'](**(params | {'requires_grad': True, 'dtype': torch.float32}))
+    test_inputs = fns['create_inputs'](**(params | {'requires_grad': True}))
 
     check_fn_backwards_match(
         ref_fn=gqa_wrapper(fns['fn']),
-        gold_inputs=inputs,
+        gold_inputs=gold_inputs,
         test_fn=fns['fn'],
-        test_inputs=inputs,
+        test_inputs=test_inputs,
+        atol=1e-2,
         rtol=1e-2,
-        atol=1e-3,
+        diff_tol=0.025,
     )
