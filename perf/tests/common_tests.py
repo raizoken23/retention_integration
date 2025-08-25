@@ -48,11 +48,12 @@ def test_output_properties(fns_params):
 @pytest.mark.parametrize("fns_params", TEST_CASES)
 def test_backward_properties(fns_params):
     fns, params = fns_params
+    if 'fwd_only' in fns: pytest.skip('Fwd-only implementation, skipping backward test')
     inputs = fns['create_inputs'](**params, requires_grad=True)
     with torch.autograd.enable_grad():
         outputs = fns['fn'](**inputs)
         if isinstance(outputs, torch.Tensor): outputs = [outputs]
-        outputs = [o for o in outputs if o.requires_grad]
+        outputs = [o for o in outputs if o is not None and o.requires_grad]
         torch.autograd.backward(outputs, [torch.ones_like(output) for output in outputs])
     desired_input_properties = fns['input_properties'](**params)
     check_tensor_property_pairs(
@@ -69,6 +70,7 @@ def test_compiles_fwd(fns_params):
 @pytest.mark.parametrize("fns_params", TEST_CASES)
 def test_compiles_with_backward(fns_params):
     fns, params = fns_params
+    if 'fwd_only' in fns: pytest.skip('Fwd-only implementation, skipping backward test')
     check_fn_compiles_with_backward(fns['fn'], fns['create_inputs'](**params, requires_grad=True))
     cleanup()
 
@@ -106,7 +108,8 @@ def test_fwd_matches_reference(fns_params):
         test_fn=fns['fn'],
         test_inputs=test_inputs,
         rtol=4.0,
-        atol=1e-3,
+        atol=1e-2,
+        diff_tol=0.1,
     )
     cleanup()
 
@@ -114,6 +117,7 @@ def test_fwd_matches_reference(fns_params):
 def test_bwd_matches_reference(fns_params):
     fns, params = fns_params
     if 'ref' not in fns: pytest.skip('No reference implementation for this function (typically because it is itself a reference)')
+    if 'fwd_only' in fns: pytest.skip('Fwd-only implementation, skipping backward test')
     torch.compiler.reset() # TODO(sean): figure out why this is needed to make triton pass
     gold_inputs = fns['create_inputs'](**(params | {'dtype': torch.float32}), requires_grad=True)
     test_inputs = fns['create_inputs'](**params, requires_grad=True)

@@ -12,6 +12,8 @@ from power_attention._utils import diff
 
 def sanity_check_tensor(tensor):
     """ Perform a sanity check on a tensor."""
+    if tensor is None:
+        return
     if not torch.isfinite(tensor).all():
         non_finite_indices = torch.argwhere(~torch.isfinite(tensor))
         torch.set_printoptions(edgeitems=10)
@@ -197,7 +199,7 @@ def check_fn_compiles_with_backward(fn, inputs, rtol=None, atol=None):
     def fwd_bwd():
         output_or_outputs = fn(**inputs)
         if not isinstance(output_or_outputs, torch.Tensor):
-            output_or_outputs = [o for o in output_or_outputs if o.requires_grad]
+            output_or_outputs = [o for o in output_or_outputs if o is not None and o.requires_grad]
         output_grads = torch.ones_like(output_or_outputs) if isinstance(output_or_outputs, torch.Tensor) else [torch.ones_like(o) for o in output_or_outputs]
         torch.autograd.backward(output_or_outputs, grad_tensors=output_grads, retain_graph=True)
         return clone_grads(inputs)
@@ -256,6 +258,17 @@ def check_inputs_backwards_match(*, fn, inputs1, inputs2, atol=None, rtol=None):
     sanity_check_tensors([grads1, grads2])
     check_allclose(grads1, grads2, atol=atol, rtol=rtol)
 
+def diff_tensors(tensor_or_tensors1, tensor_or_tensors2, rtol, atol):
+    """Print the distribution of a tensor or tensors."""
+    if isinstance(tensor_or_tensors1, torch.Tensor):
+        diff(tensor_or_tensors1, tensor_or_tensors2, rtol=rtol, atol=atol, assert_close=False, verbose=True)
+    elif isinstance(tensor_or_tensors1, (list, tuple)):
+        for i, (t1, t2) in enumerate(zip(tensor_or_tensors1, tensor_or_tensors2)):
+            diff(t1, t2, rtol=rtol, atol=atol, assert_close=False, verbose=True, title=f"Tensor {i+1}/{len(tensor_or_tensors1)}")
+    elif isinstance(tensor_or_tensors1, dict):
+        for key in tensor_or_tensors1:
+            diff(tensor_or_tensors1[key], tensor_or_tensors2[key], rtol=rtol, atol=atol, assert_close=False, verbose=True, title=f"Tensor {key}")
+
 def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=None, atol=0., diff_tol=None):
     """Given two functions, check that they produce the same output for the same inputs.
 
@@ -272,12 +285,19 @@ def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=N
         atol: float. Absolute tolerance for difference
         diff_tol: float. Tolerance for percentage of elements that differ
     """
-    # ref_inputs = clone_inputs(test_inputs)
+    def filter_none(outputs):
+        if isinstance(outputs, torch.Tensor):
+            return outputs
+        elif isinstance(outputs, (tuple, list)):
+            return [o for o in outputs if o is not None]
+        else:
+            raise ValueError(f"Unsupported type: {type(outputs)}")
     ref_inputs = test_inputs
     with torch.no_grad():
-        gold_output = ref_fn(**gold_inputs)
-        ref_output = ref_fn(**ref_inputs)
-        test_output = test_fn(**test_inputs)
+        gold_output = filter_none(ref_fn(**gold_inputs))
+        ref_output = filter_none(ref_fn(**ref_inputs))
+        test_output = filter_none(test_fn(**test_inputs))
+
     sanity_check_tensors([gold_output, ref_output, test_output])
     ref_err = compare(gold_output, ref_output)
     test_err = compare(gold_output, test_output)
@@ -287,6 +307,7 @@ def check_fn_forwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=N
         violation_pct = get_violation_pct(gold_output, ref_output, test_output, tol=rtol, atol=atol)
         if diff_tol is not None and violation_pct < diff_tol:
             return
+            
         msg = inspect_diff_details(gold_output, ref_output, test_output, tol=rtol, atol=atol)
         if isinstance(gold_output, torch.Tensor):
             gold_output = [gold_output]
@@ -349,6 +370,8 @@ def check_fn_backwards_match(*, ref_fn, gold_inputs, test_fn, test_inputs, rtol=
     try:
         check_error_within_tolerance(test_err, atol=atol, rtol=rtol, ref_error=ref_err)
     except AssertionError as e:
+        diff_tensors(gold_grads, ref_grads, rtol, atol)
+        diff_tensors(gold_grads, test_grads, rtol, atol)
         violation_pct = get_violation_pct(gold_grads, ref_grads, test_grads, tol=rtol, atol=atol)
         if diff_tol is not None and violation_pct < diff_tol:
             return

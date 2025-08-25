@@ -7,60 +7,66 @@ normal_space = False
 normalize_output = False
 ε = 1e-6
 
-def attention(Q, K, V, log_G, deg, r=1, w=1, causal=True, head_first=False, scale=1.0, norm=False, use_log2=False):
+def attention(Q, K, V, log_G, deg, causal=True, head_first=False, scale=1.0, norm=False, use_log2=False):
+    r = Q.shape[2] // K.shape[2]
+    w = 1
     if head_first:
-        b, hq, ctx, d, hk, e = *Q.shape, K.shape[1], V.shape[-1]
+        b, hq, ctx_q, d, hk, ctx_k, e = *Q.shape, K.shape[1], K.shape[2], V.shape[-1]
     else:
-        b, ctx, hq, d, hk, e = *Q.shape, K.shape[2], V.shape[-1]
+        b, ctx_q, hq, d, ctx_k, hk, e = *Q.shape, K.shape[1], K.shape[2], V.shape[-1]
     assert hq % r == 0, "hq must be divisible by r"
     assert hk % w == 0, "hk must be divisible by w"
     assert hq // r == hk // w, "hq // r must be equal to hk // w"
     assert isinstance(deg, int) and deg % 2 == 0, "deg must be a positive even integer"
     h = hq // r
-    if log_G is not None:
+    log_GK = log_G
+    if log_GK is not None:
         if head_first:
-            assert log_G.shape == (b, h, ctx)
+            assert log_GK.shape == (b, h, ctx_k)
         else:
-            assert log_G.shape == (b, ctx, h)
-            log_G = log_G.transpose(1, 2) # (b, h, ctx)
+            assert log_GK.shape == (b, ctx_k, h)
+            log_GK = log_GK.transpose(1, 2) # (b, h, ctx_k)
+        log_GQ = log_GK[..., -ctx_q:]
     if head_first:
-        Q = Q.view(b, h, ctx * r, d)
-        K = K.view(b, h, ctx * w, d)
-        V = V.view(b, h, ctx * w, e)
+        Q = Q.view(b, h, r, ctx_q, d).transpose(2, 3).reshape(b, h, ctx_q * r, d)
+        K = K.view(b, h, w, ctx_k, d).transpose(2, 3).reshape(b, h, ctx_k * w, d)
+        V = V.view(b, h, w, ctx_k, e).transpose(2, 3).reshape(b, h, ctx_k * w, e)
     else:
-        Q = Q.view(b, ctx * r, h, d).transpose(1, 2)
-        K = K.view(b, ctx * w, h, d).transpose(1, 2)
-        V = V.view(b, ctx * w, h, e).transpose(1, 2)
+        Q = Q.view(b, ctx_q, h, r, d).permute(0, 2, 1, 3, 4).reshape(b, h, ctx_q * r, d)
+        K = K.view(b, ctx_k, h, w, d).permute(0, 2, 1, 3, 4).reshape(b, h, ctx_k * w, d)
+        V = V.view(b, ctx_k, h, w, e).permute(0, 2, 1, 3, 4).reshape(b, h, ctx_k * w, e)
     
     exp = torch.exp if not use_log2 else torch.exp2
     log = torch.log if not use_log2 else torch.log2
 
-    _qidx = torch.arange(ctx*r, device=Q.device).unsqueeze(1)
-    _kidx = torch.arange(ctx*w, device=K.device).unsqueeze(0)
+    _qidx = torch.arange(ctx_q * r, device=Q.device).unsqueeze(1)
+    _kidx = torch.arange(ctx_k * w, device=K.device).unsqueeze(0)
     s = torch.matmul(Q, K.transpose(2,3)) * scale
-    m = (_qidx // r) >= (_kidx // w) if causal else torch.ones_like(s, dtype=torch.bool)
+    m = (_qidx // r + ctx_k - ctx_q) >= (_kidx // w) if causal else torch.ones_like(s, dtype=torch.bool)
     signs = torch.sign(s)
     s = float(deg) * torch.where(m, log(s.abs() + 1e-7), -float("inf"))
-    if log_G is not None:
-        s = s + (log_G.repeat_interleave(r, dim=2)[..., :, None] - log_G.repeat_interleave(w, dim=2)[..., None, :])
+    if log_GK is not None:
+        s = s + (log_GQ.repeat_interleave(r, dim=2)[..., :, None] - log_GK.repeat_interleave(w, dim=2)[..., None, :])
     rowmax = torch.max(s, dim=-1, keepdim=True).values.detach()
     if deg % 2 == 0:
         p = exp(s - rowmax).to(V.dtype)
     else:
-        p = exp(s - rowmax).to(V.dtype) * signs
-    l = torch.sum(p, dim=-1).to(torch.float32) + 1e-6
-    o = torch.matmul(p, V)
-    if norm:
-        o = (o / l[..., None]).to(V.dtype)
-    if not head_first:
-        o = o.transpose(1, 2)
-        rowmax = rowmax.transpose(1, 2)
-        l = l.transpose(1, 2)
-    if norm:
-        return o
-    else:
-        return o, l, rowmax.squeeze(-1).to(torch.float32)
+        p = exp(s - rowmax).to(V.dtype) * signs # [b, h, r * ctx_q, ctx_k]
+    l = (torch.sum(p, dim=-1).to(torch.float32) + 1e-6) # [b, h, ctx_q]
+    o = torch.matmul(p, V) # [b, h, ctx_q, e]
+    rowmax = rowmax # [b, h, ctx_q]
 
+    if head_first:
+        l = l.view(b, hq, ctx_q)
+        o = o.view(b, hq, ctx_q, e)
+        rowmax = rowmax.view(b, hq, ctx_q)
+    else:
+        l = l.view(b, h, ctx_q, r).permute(0, 2, 1, 3).reshape(b, ctx_q, hq)
+        o = o.view(b, h, ctx_q, r, e).permute(0, 2, 1, 3, 4).reshape(b, ctx_q, hq, e)
+        rowmax = rowmax.view(b, h, ctx_q, r).permute(0, 2, 1, 3).reshape(b, ctx_q, hq)
+    if norm:
+        return (o / l[..., None]).to(V.dtype)
+    return o, l, rowmax.to(torch.float32)
 
 attention_fwd = attention
 
