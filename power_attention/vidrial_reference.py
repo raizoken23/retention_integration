@@ -1,11 +1,12 @@
 import torch
-from power_attention.power_full_maker import make_power_full
+from power_attention.power_full_maker import make_power_full_fused, make_power_full_inference
 from power_attention._attention.reference import attention
-from power_attention._update_state.reference_vidrial import update_state
+from power_attention._update_state.reference_vidrial_fused import update_state
 from power_attention._discumsum.reference import discumsum_reference as discumsum
-from power_attention._query_state.reference_vidrial import query_state
+from power_attention._query_state.reference_vidrial_fused import query_state
 
-power_full = make_power_full(update_state, query_state, discumsum, attention)
+power_full = make_power_full_fused(update_state, query_state, discumsum, attention)
+power_full_inference = make_power_full_inference(update_state, query_state, attention)
 
 
 ## TUTORIAL ##

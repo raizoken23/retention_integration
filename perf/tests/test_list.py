@@ -228,8 +228,8 @@ from power_attention import (
     inference_output_properties as power_full_inference_output_properties,
 )
 from power_attention.reference import power_full as power_full_reference
-from power_attention.vidrial_fused import power_full as power_full_vidrial_fused, power_full_inference as power_full_vidrial_fused_inference
-from power_attention.vidrial_fused_reference import power_full as power_full_vidrial_fused_reference, power_full_inference as power_full_vidrial_fused_inference_reference
+from power_attention.vidrial import power_full as power_full_vidrial, power_full_inference as power_full_vidrial_inference
+from power_attention.vidrial_reference import power_full as power_full_vidrial_reference, power_full_inference as power_full_vidrial_inference_reference
 from power_attention.triton import power_full
 power_full_input_output = {'create_inputs': power_full_create_inputs, 'input_properties': power_full_input_properties, 'output_properties': power_full_output_properties}
 power_full_fn_sets = [
@@ -237,10 +237,10 @@ power_full_fn_sets = [
         'fn': power_full_reference, **power_full_input_output},
     {'name': 'power_full', 'extends': 'power_full', 'impl': 'full',
         'fn': power_full, 'ref': power_full_reference, **power_full_input_output},
-    {'name': 'power_full_vidrial_fused_reference', 'extends': 'power_full', 'impl': 'vidrial_fused_reference',
-        'fn': power_full_vidrial_fused_reference, **power_full_input_output},
-    {'name': 'power_full_vidrial_fused', 'extends': 'power_full', 'impl': 'vidrial_fused',
-        'fn': power_full_vidrial_fused, **power_full_input_output},
+    {'name': 'power_full_vidrial_reference', 'extends': 'power_full', 'impl': 'vidrial_reference',
+        'fn': power_full_vidrial_reference, **power_full_input_output},
+    {'name': 'power_full_vidrial', 'extends': 'power_full', 'impl': 'vidrial',
+        'fn': power_full_vidrial, **power_full_input_output},
 ]
 # Define parameter ranges
 power_full_param_ranges = {
@@ -257,12 +257,13 @@ power_full_param_ranges = {
 }
 POWER_FULL_TEST_CASES = fn_set_and_param_range_to_test_cases(power_full_fn_sets, power_full_param_ranges)
 
+### Inference tests params ###
 power_full_inference_input_output = {'create_inputs': power_full_create_inputs_inference, 'input_properties': power_full_inference_input_properties, 'output_properties': power_full_inference_output_properties}
 power_full_inference_fn_sets = [
-    {'name': 'power_full_vidrial_fused_inference_reference', 'extends': 'power_full', 'impl': 'vidrial_fused_reference', 
-        'fn': power_full_vidrial_fused_inference_reference, **power_full_inference_input_output, 'fwd_only': True},
-    {'name': 'power_full_vidrial_fused_inference', 'extends': 'power_full', 'impl': 'vidrial_fused', 
-        'fn': power_full_vidrial_fused_inference, 'ref': power_full_vidrial_fused_inference_reference, **power_full_inference_input_output, 'fwd_only': True},
+    {'name': 'power_full_vidrial_inference_reference', 'extends': 'power_full', 'impl': 'vidrial_reference', 
+        'fn': power_full_vidrial_inference_reference, **power_full_inference_input_output, 'fwd_only': True},
+    {'name': 'power_full_vidrial_inference', 'extends': 'power_full', 'impl': 'vidrial', 
+        'fn': power_full_vidrial_inference, 'ref': power_full_vidrial_inference_reference, **power_full_inference_input_output, 'fwd_only': True},
 ]
 power_full_inference_param_ranges = {
     'b': [1],

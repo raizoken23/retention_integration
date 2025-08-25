@@ -691,9 +691,9 @@ class _power_attention(torch.autograd.Function):
                 log_GK = None
                 gq_strides = (0, 0, 0)
                 gk_strides = (0, 0, 0)
-            Q = Q.view(b, h, tq * r, d)
-            K = K.view(b, h, tk * w, d)
-            V = V.view(b, h, tk * w, e)
+            Q = Q.view(b, h, r, tq, d).transpose(2, 3).reshape(b, h, tq * r, d)
+            K = K.view(b, h, w, tk, d).transpose(2, 3).reshape(b, h, tk * w, d)
+            V = V.view(b, h, w, tk, e).transpose(2, 3).reshape(b, h, tk * w, e)
             rowmax = torch.empty((b, h, tq * r), device=Q.device, dtype=torch.float32)
             l = torch.empty((b, h, tq * r), device=Q.device, dtype=torch.float32)
             q_strides = (Q.stride(0), Q.stride(1), Q.stride(2), Q.stride(3))
@@ -715,9 +715,9 @@ class _power_attention(torch.autograd.Function):
                 log_GK = None
                 gq_strides = (0, 0, 0)
                 gk_strides = (0, 0, 0)
-            Q = Q.view(b, tq * r, h, d)
-            K = K.view(b, tk * w, h, d)
-            V = V.view(b, tk * w, h, e)
+            Q = Q.view(b, tq, h, r, d).transpose(2, 3).reshape(b, tq * r, h, d)
+            K = K.view(b, tk, h, w, d).transpose(2, 3).reshape(b, tk * w, h, d)
+            V = V.view(b, tk, h, w, e).transpose(2, 3).reshape(b, tk * w, h, e)
             rowmax = torch.empty((b, tq * r, h), device=Q.device, dtype=torch.float32)
             l = torch.empty((b, tq * r, h), device=Q.device, dtype=torch.float32)
             q_strides = (Q.stride(0), Q.stride(2), Q.stride(1), Q.stride(3))
@@ -733,9 +733,11 @@ class _power_attention(torch.autograd.Function):
         _attn_fwd[grid](
             Q, K, V, log_GQ, log_GK, l, rowmax, o, *q_strides, *k_strides, *v_strides, *rowmax_strides, *gq_strides, *gk_strides, *o_strides, *l_strides,
             H=h, M_CTX=tq*r, N_CTX=tk*w, r=r, w=w, deg=deg, scale=scale, gating=gating, DIM_QK=d, DIM_VO=e, STAGE=stage, norm=norm, use_log2=use_log2)
-        o = o.view(b, hq, tq, e) if head_first else o.view(b, tq, hq, e)
-        l = l.view(b, hq, tq) if head_first else l.view(b, tq, hq)
-        rowmax = rowmax.view(b, hq, tq) if head_first else rowmax.view(b, tq, hq)
+
+        o = o.view(b, h, tq, r, e).transpose(2, 3).reshape(b, hq, tq, e) if head_first else o.view(b, tq, r, h, e).transpose(2, 3).reshape(b, tq, hq, e)
+        l = l.view(b, h, tq, r).transpose(2, 3).reshape(b, hq, tq) if head_first else l.view(b, tq, r, h).transpose(2, 3).reshape(b, tq, hq)
+        rowmax = rowmax.view(b, h, tq, r).transpose(2, 3).reshape(b, hq, tq) if head_first else rowmax.view(b, tq, r, h).transpose(2, 3).reshape(b, tq, hq)
+
         ctx.save_for_backward(Q, K, V, l, rowmax, o, log_GQ, log_GK)
         ctx.b = b
         ctx.h = h
