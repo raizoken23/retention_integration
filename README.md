@@ -1,4 +1,4 @@
-# =Retention
+# Retention
 [![Build](https://github.com/m-a-n-i-f-e-s-t/power-attention/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/m-a-n-i-f-e-s-t/power-attention/actions/workflows/build-and-test.yml)
 
 This repository contains a PyTorch layer implementing symmetric power retention, a linear-cost variant of attention whose state size can be controlled
