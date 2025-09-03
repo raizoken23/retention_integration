@@ -1,7 +1,7 @@
-# Power Attention
+# =Retention
 [![Build](https://github.com/m-a-n-i-f-e-s-t/power-attention/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/m-a-n-i-f-e-s-t/power-attention/actions/workflows/build-and-test.yml)
 
-This repository contains a PyTorch layer implementing symmetric power attention, a linear-cost variant of attention whose state size can be controlled
+This repository contains a PyTorch layer implementing symmetric power retention, a linear-cost variant of attention whose state size can be controlled
 independently of context length and parameter count.
 
 For details on the approach, see our paper: [Scaling Context Requires Rethinking Attention](http://arxiv.org/abs/2507.04239)
@@ -22,7 +22,7 @@ Documentation: [https://m-a-n-i-f-e-s-t.github.io/power-attention/](https://m-a-
 
 ### From PyPI (Recommended)
 ```bash
-pip install power-attention
+pip install retention
 ```
 
 ### From Source
@@ -33,8 +33,8 @@ Requirements:
 - Linux (Windows/MacOS not supported)
 
 ```bash
-git clone https://github.com/manifest-ai/power-attention.git
-cd power-attention
+git clone https://github.com/manifest-ai/retention.git
+cd retention
 pip install -e .
 ```
 
@@ -42,11 +42,11 @@ All other dependencies (PyTorch, Ninja build system, etc.) will be automatically
 
 ## Usage
 
-The main entry point is the `power_full` function, which implements symmetric power attention. Here's a basic example:
+The main entry point is the `power_full` function, which implements symmetric power retention. Here's a basic example:
 
 ```python
 import torch
-from power_attention import power_full
+from retention import power_full
 
 # Create input tensors
 batch_size = 2
@@ -63,7 +63,7 @@ log_G = torch.nn.functional.logsigmoid(
     torch.randn(batch_size, seq_len, num_heads, dtype=torch.float32, device='cuda')
 )
 
-# Compute attention
+# Compute retention
 output = power_full(
     Q=Q, K=K, V=V, 
     log_G=log_G,          # Optional gating tensor
@@ -75,10 +75,10 @@ output = power_full(
 ### Integration with Transformer Models
 
 The package includes a drop-in replacement for standard attention in transformer models.
-See `train/model.py` for a complete example of using power attention in a GPT-style model:
+See `train/model.py` for a complete example of using power retention in a GPT-style model:
 
 ```python
-from power_attention import power_full
+from retention import power_full
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
