@@ -7,8 +7,6 @@ independently of context length and parameter count.
 
 For details on the approach, see our paper: [Scaling Context Requires Rethinking Attention](http://arxiv.org/abs/2507.04239)
 
-Documentation: [https://m-a-n-i-f-e-s-t.github.io/retention/](https://m-a-n-i-f-e-s-t.github.io/retention/)
-
 
 ### Training Performance
 
