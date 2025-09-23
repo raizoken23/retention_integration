@@ -29,12 +29,12 @@ jobs:
       run: |
         source .venv/bin/activate
         if [ "${{ matrix.repo }}" = "https://test.pypi.org/simple/" ]; then
-          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple power-attention
+          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple retention
         else
-          pip install power-attention
+          pip install retention
         fi
 
     - name: Verify import
       run: |
         source .venv/bin/activate
-        python -c "import power_attention"
+        python -c "import retention"

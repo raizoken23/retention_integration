@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from power_attention.vidrial_fused import power_full, power_full_inference
+from retention.vidrial_fused import power_retention, power_retention_inference
 from flash_attn.flash_attn_interface import flash_attn_func
 
 class PowerAttention(nn.Module):
@@ -61,12 +61,12 @@ class PowerAttention(nn.Module):
             log_g = None
 
         if use_cache and self.kernel == 'power':
-            y, state = power_full_inference(q.contiguous(), k.contiguous(), v.contiguous(), log_g, state,
+            y, state = power_retention_inference(q.contiguous(), k.contiguous(), v.contiguous(), log_g, state,
                 deg=self.degree,
                 scale=1.0 / d**0.5,
                 chunk_size=self.chunk_size)                
         elif self.kernel == 'power':
-            y = power_full(q.contiguous(), k.contiguous(), v.contiguous(), log_g,
+            y = power_retention(q.contiguous(), k.contiguous(), v.contiguous(), log_g,
                 deg=self.degree,
                 scale=1.0 / d**0.5,
                 chunk_size=self.chunk_size)

@@ -18,11 +18,11 @@ from collections import defaultdict
 from .db import KVDB
 from .benchmarks.runs import *  # noqa
 from ._utils import tensors_to_ones_like
-from power_attention._update_state import default_D
+from retention._update_state import default_D
 from vidrial.py_utils.gpu import get_cuda_device_basic_props
-from vidrial.jit.decorator import set_settings, PickBest
+from vidrial.jit.settings import settings, PickBest
 
-benchmark_db = KVDB(os.path.expanduser('~/.power-attention-benchmark.db'))
+benchmark_db = KVDB(os.path.expanduser('~/.retention-benchmark.db'))
 logger = logging.getLogger(__name__)
 plots_dir = Path(__file__).parent.parent / 'plots'
 
@@ -42,29 +42,15 @@ def str_to_dtype(s: str):
 
 PROFILABLE_RUNS = {
     'sdpa': SDPA.make_run,
-    'power_full_triton': PowerFullTriton.make_run,
-    'power_full_vidrial': PowerFullVidrial.make_run,
-    'power_full_fused': PowerFullFused.make_run,
+    'power_retention_triton': PowerRetentionTriton.make_run,
+    'power_retention_vidrial': PowerRetentionVidrial.make_run,
     'query_state_triton': QueryStateTriton.make_run,
     'query_state_vidrial': QueryStateVidrial.make_run,
-    'query_state_vidrial_fused': QueryStateVidrialFused.make_run,
     'update_state_triton': UpdateStateTriton.make_run,
     'update_state_vidrial': UpdateStateVidrial.make_run,
-    'update_state_vidrial_fused': UpdateStateVidrialFused.make_run,
-    'power_attention_cuda': PowerAttentionCuda.make_run,
-    'power_attention_triton': PowerAttentionTriton.make_run,
     'flash_attn': FlashAttn.make_run,
     'discumsum': Discumsum.make_run,
 }
-
-# Kernel aliases for convenience
-KERNEL_ALIASES = {
-    'power_full': 'power_full_triton',
-    'query_state': 'query_state_triton',
-    'update_state': 'update_state_triton',
-    'power_attention': 'power_attention_triton',
-}
-
 
 class BenchmarkConfig:
     """Configuration for benchmark runs."""
@@ -111,9 +97,7 @@ class BenchmarkConfig:
 
 def run_kernel(kernel: str, config: BenchmarkConfig, mode: str) -> float:
     """Run a single kernel with the given configuration and mode."""
-    # Resolve kernel aliases
-    kernel = KERNEL_ALIASES.get(kernel, kernel)
-    
+    logger.info(f"Benchmarking {kernel} with {mode} mode")
     if kernel not in PROFILABLE_RUNS:
         raise ValueError(f"Unknown kernel: {kernel}. Available kernels: {list(PROFILABLE_RUNS.keys())}")
     
@@ -175,14 +159,17 @@ def run_kernel_with_chunk_adjustment(kernel: str, config: BenchmarkConfig, mode:
     """Run kernel with automatic chunk size adjustment for certain kernels."""
     # Kernels that need chunk_size adjustment
     chunk_kernels = {
-        'query_state_triton', 'query_state_vidrial', 'query_state_vidrial_fused',
-        'query_state_vidrial_fused_kernel', 'update_state_triton', 'update_state_vidrial',
-        'update_state_vidrial_fused'
+        'query_state_triton', 'query_state_vidrial', 'update_state_triton', 'update_state_vidrial',
     }
-    
+    attn_kernels = {'power_attention_triton'}
+
     adjusted_config = copy.deepcopy(config)
     if kernel in chunk_kernels:
         adjusted_config.t = config.chunk_size
+    elif kernel in attn_kernels:
+        adjusted_config.b = config.b * config.n
+        adjusted_config.t = config.chunk_size
+        adjusted_config.norm = False
     
     return run_kernel(kernel, adjusted_config, mode)
 
@@ -196,7 +183,7 @@ def benchmark_single_kernel(kernel: str, config: BenchmarkConfig, mode: str) -> 
             print(f"Mode: {mode}")
             print(f"Result: {result:.3f} ms")
             print(f"Configuration: b={config.b}, t={config.t}, h={config.h}, d={config.d}, "
-                  f"dtype={config.dtype}, deg={config.deg}, chunk_size={config.chunk_size}")
+                f"dtype={config.dtype}, deg={config.deg}, chunk_size={config.chunk_size}")
         else:
             print(f"Kernel {kernel} executed successfully (no measurement)")
     except Exception as e:
@@ -204,36 +191,23 @@ def benchmark_single_kernel(kernel: str, config: BenchmarkConfig, mode: str) -> 
         raise
 
 
-def benchmark_all_kernels(config: BenchmarkConfig, mode: str, impl: str = 'default', title: str = '') -> None:
+def benchmark_all_kernels(config: BenchmarkConfig, mode: str, title: str = '') -> None:
     """Benchmark all kernels and create plots."""
     problem_str = f"b_{config.b}_t_{config.t}_n_{config.n}_h_{config.h}_d_{config.d}_dtype_{config.dtype}_device_{config.device}_deg_{config.deg}_chunk_size_{config.chunk_size}_gating_{config.gating}_mode_{mode}_compile_{config.compile}"
     
-    # Run all kernels
-    power_full_fused = run_kernel('power_full_fused', config, mode)
-    power_full_triton = run_kernel('power_full_triton', config, mode)
+    # Run power full kernels
+    power_retention_triton = run_kernel_with_chunk_adjustment('power_retention_triton', config, mode)
+    power_retention_vidrial = run_kernel_with_chunk_adjustment('power_retention_vidrial', config, mode)
     
-    # Chunk-adjusted kernels
-    chunk_config = copy.deepcopy(config)
-    chunk_config.t = config.chunk_size
-    
-    query_state_triton = run_kernel('query_state_triton', chunk_config, mode)
-    query_state_vidrial = run_kernel('query_state_vidrial', chunk_config, mode)
-    query_state_vidrial_fused = run_kernel('query_state_vidrial_fused', chunk_config, mode)
-    power_full_vidrial = run_kernel('power_full_vidrial', config, mode)
-    update_state_triton = run_kernel('update_state_triton', chunk_config, mode)
-    update_state_vidrial = run_kernel('update_state_vidrial', chunk_config, mode)
-    update_state_vidrial_fused = run_kernel('update_state_vidrial_fused', chunk_config, mode)
+    # Component kernels
+    query_state_triton = run_kernel_with_chunk_adjustment('query_state_triton', config, mode)
+    query_state_vidrial = run_kernel_with_chunk_adjustment('query_state_vidrial', config, mode)
+    update_state_triton = run_kernel_with_chunk_adjustment('update_state_triton', config, mode)
+    update_state_vidrial = run_kernel_with_chunk_adjustment('update_state_vidrial', config, mode)
     discumsum = run_kernel('discumsum', config, mode)
+    chunked_attention_triton = run_kernel_with_chunk_adjustment('power_attention_triton', config, mode)
     
-    # Special config for chunked attention
-    chunked_config = copy.deepcopy(config)
-    chunked_config.b = config.b * config.n
-    chunked_config.t = config.chunk_size
-    chunked_config.norm = False
-    chunked_attention_triton = run_kernel('power_attention_triton', chunked_config, mode)
-    
-    # power_attn_triton = run_kernel('power_attention_triton', config, mode)
-    power_attn_cuda = run_kernel('power_attention_cuda', config, mode)
+    # Baseline kernels
     sdpa = run_kernel('sdpa', config, mode)
     flash_attn = run_kernel('flash_attn', config, mode)
 
@@ -243,28 +217,24 @@ def benchmark_all_kernels(config: BenchmarkConfig, mode: str, impl: str = 'defau
     # Create plot
     data = {
         'Implementation': [
-            'Power Full (Triton)', 'Power Full (Vidrial)', 'Power Full (Fused)',
-            'Power Full Breakdown (Triton)', 'Power Full Breakdown (Vidrial)', 'Power Full Breakdown (Fused)',
-            'Power Attention (CUDA)',
+            'Power Full (Triton)', 'Power Full (Vidrial)',
+            'Power Full Breakdown (Triton)', 'Power Full Breakdown (Vidrial)',
             'SDPA', 'Flash Attention',
         ],
-        'Query State (ms)': [0, 0, 0, query_state_triton, query_state_vidrial, query_state_vidrial_fused, 0, 0, 0],
-        'Update State (ms)': [0, 0, 0, update_state_triton, update_state_vidrial, update_state_vidrial_fused, 0, 0, 0],
-        'Chunked Attention (ms)': [0, 0, 0, chunked_attention_triton, chunked_attention_triton, chunked_attention_triton, 0, 0, 0],
-        'Discumsum (ms)': [0, 0, 0, discumsum, discumsum, discumsum, 0, 0, 0],
+        'Query State (ms)': [0, 0, query_state_triton, query_state_vidrial, 0, 0],
+        'Update State (ms)': [0, 0, update_state_triton, update_state_vidrial, 0, 0],
+        'Chunked Attention (ms)': [0, 0, chunked_attention_triton, chunked_attention_triton, 0, 0],
+        'Discumsum (ms)': [0, 0, discumsum, discumsum, 0, 0],
         'Total (ms)': [
-            power_full_triton, power_full_vidrial, power_full_fused,
-            0, 0, 0,
-            power_attn_cuda,
+            power_retention_triton, power_retention_vidrial,
+            0, 0,
             sdpa, flash_attn,
         ]
     }
     
     df = pd.DataFrame(data)
+    df.to_csv(plots_dir / f'benchmark_results_{problem_str}.csv')
     df = df.set_index('Implementation')
-    if impl == 'default':
-        df = df.drop(index=['Power Full Breakdown (Vidrial)', 'Power Full (Vidrial)', 'Power Attention (CUDA)', 'Power Attention (Triton)'], errors='ignore')
-    
     ax = df.plot(kind='bar', stacked=True, figsize=(12, 7))
     plt.xticks(rotation=15, ha='right')
     gpu_name = get_cuda_device_basic_props()[0]['name'].replace(' ', '_')
@@ -302,22 +272,18 @@ def plot_throughput_by_ctx(base_config: BenchmarkConfig, ts: list[int], mode: st
         
         data['ctx'].append(t)
         data['tokens'].append(config.b * t)
-        data['power_attention_triton'].append(run_kernel('power_attention_triton', config, mode))
+        data['power_retention_triton'].append(run_kernel('power_retention_triton', config, mode))
+        data['power_retention_vidrial'].append(run_kernel('power_retention_vidrial', config, mode))
         data['sdpa'].append(run_kernel('sdpa', config, mode))
         data['flash_attn'].append(run_kernel('flash_attn', config, mode))
-        data['power_attention_cuda'].append(run_kernel('power_attention_cuda', config, mode))
-        data['power_full'].append(run_kernel('power_full_triton', config, mode))
-        data['power_full_vidrial'].append(run_kernel('power_full_vidrial', config, mode))
 
     df = pd.DataFrame(data)
-    for kernel in ['power_attention_triton', 'sdpa', 'flash_attn', 'power_attention_cuda', 'power_full', 'power_full_vidrial']:
+    for kernel in ['power_retention_triton', 'power_retention_vidrial', 'sdpa', 'flash_attn']:
         df[kernel] = df['tokens'] / df[kernel]
     del df['tokens']
     
     df = df.set_index(['ctx'])
-    if impl == 'default':
-        df = df.drop(columns=['power_full_vidrial', 'power_attention_cuda', 'power_attention_triton'])
-    ax = df.plot(kind='line', figsize=(12, 7), linewidth=3, marker='o')
+    df.plot(kind='line', figsize=(12, 7), linewidth=3, marker='o')
     plt.ylabel('Throughput (tokens/s)')
     gpu_name = get_cuda_device_basic_props()[0]['name'].replace(' ', '_')
     plt.title('Throughput vs Context Length Comparison')
@@ -351,7 +317,7 @@ Examples:
   # Run individual kernels (new behavior)
   python benchmark.py query_state fwd
   python benchmark.py query_state_vidrial fwd
-  python benchmark.py power_full_fused bwd
+  python benchmark.py power_retention_vidrial bwd
   python benchmark.py sdpa fwd --b 4 --t 8192
 
   # List available kernels
@@ -375,9 +341,8 @@ Examples:
                        help='Data type (default: bfloat16)')
     parser.add_argument('--deg', type=int, default=2, help='Degree (default: 2)')
     parser.add_argument('--chunk-size', type=int, default=1024, help='Chunk size (default: 1024)')
-    parser.add_argument('--impl', type=str, default='default', help='Implementations to compare', choices=['default', 'all'])
     parser.add_argument('--title', type=str, default='', help='Title of the plot')
-    parser.add_argument('--measure', action='store_true', help='Measure the performance')
+    parser.add_argument('--no-measure', action='store_true', help='Do not measure the performance, simply run the kernel')
     parser.add_argument('--compile', action='store_true', help='Compile the kernel')
     parser.add_argument('--list-kernels', action='store_true', help='List available kernels and exit')
     
@@ -388,9 +353,6 @@ Examples:
         print("Available kernels:")
         for kernel in sorted(PROFILABLE_RUNS.keys()):
             print(f"  {kernel}")
-        print("\nKernel aliases:")
-        for alias, kernel in KERNEL_ALIASES.items():
-            print(f"  {alias} -> {kernel}")
         return
     
     # Parse arguments to determine mode
@@ -399,7 +361,7 @@ Examples:
     
     # Determine if we're running a single kernel or all kernels
     modes = ['fwd', 'bwd', 'fwd+bwd']
-    all_kernels = list(PROFILABLE_RUNS.keys()) + list(KERNEL_ALIASES.keys())
+    all_kernels = list(PROFILABLE_RUNS.keys())
     
     if args.first_arg in modes:
         # Original behavior: run all kernels with plotting
@@ -419,10 +381,10 @@ Examples:
             gating=True,
             norm=True,
             compile=args.compile,
-            measure=args.measure,
+            measure=not args.no_measure,
         )
         
-        benchmark_all_kernels(config, mode, args.impl, args.title)
+        benchmark_all_kernels(config, mode, args.title)
         
     elif args.first_arg in all_kernels:
         # New behavior: run single kernel
@@ -445,7 +407,7 @@ Examples:
             gating=True,
             norm=True,
             compile=args.compile,
-            measure=args.measure,
+            measure=not args.no_measure,
         )
         
         benchmark_single_kernel(kernel, config, mode)
@@ -480,5 +442,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     # Disable matplotlib debug logging
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    with set_settings(policy=PickBest, max_workers=16, allow_failure=True, verbose=True):
+    with settings.set(policy=PickBest, max_workers=16, allow_failure=True, verbose=True):
         main()

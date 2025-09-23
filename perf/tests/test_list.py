@@ -28,7 +28,7 @@ def id_fn(fns_params):
 
 ## attention ##
 
-from power_attention._attention import (
+from retention._attention import (
     create_inputs as attention_create_inputs,
     input_properties as attention_input_properties,
     output_properties as attention_output_properties,
@@ -87,7 +87,7 @@ ATTENTION_TEST_CASES += fn_set_and_param_range_to_test_cases(attention_inference
 
 
 ## update_state ##
-from power_attention._update_state import (
+from retention._update_state import (
     create_inputs as update_state_create_inputs,
     input_properties as update_state_input_properties,
     output_properties as update_state_output_properties,
@@ -128,7 +128,7 @@ UPDATE_STATE_TEST_CASES = fn_set_and_param_range_to_test_cases(update_state_fn_s
 
 
 ## discumsum ##
-from power_attention._discumsum import (
+from retention._discumsum import (
     create_inputs as discumsum_create_inputs,
     input_properties as discumsum_input_properties,
     output_properties as discumsum_output_properties,
@@ -160,7 +160,7 @@ DISCUMSUM_TEST_CASES = fn_set_and_param_range_to_test_cases(discumsum_fn_sets, d
 
 
 ## query_state ##
-from power_attention._query_state import (
+from retention._query_state import (
     create_inputs as query_state_create_inputs,
     input_properties as query_state_input_properties,
     output_properties as query_state_output_properties,
@@ -202,6 +202,8 @@ query_state_inference_input_output = {'create_inputs': partial(query_state_creat
 query_state_inference_fn_sets = [
     {'name': 'query_state_vidrial_fused_inference', 'extends': 'query_state', 'impl': 'vidrial_fused',
         'fn': query_state_vidrial_fused, 'ref': query_state_vidrial_fused_reference, **query_state_fused_input_output, 'fwd_only': True},
+    {'name': 'query_state_triton_inference', 'extends': 'query_state', 'impl': 'triton',
+        'fn': query_state_triton, 'ref': query_state_reference, **query_state_inference_input_output, 'fwd_only': True},
 ]
 query_state_inference_param_ranges = {
     'b': [32],
@@ -219,33 +221,33 @@ QUERY_STATE_TEST_CASES += fn_set_and_param_range_to_test_cases(query_state_infer
 
 ## power full
 
-from power_attention import (
-    create_inputs as power_full_create_inputs,
-    create_inference_inputs as power_full_create_inputs_inference,
-    input_properties as power_full_input_properties,
-    output_properties as power_full_output_properties,
-    inference_input_properties as power_full_inference_input_properties,
-    inference_output_properties as power_full_inference_output_properties,
+from retention import (
+    create_inputs as power_retention_create_inputs,
+    create_inference_inputs as power_retention_create_inputs_inference,
+    input_properties as power_retention_input_properties,
+    output_properties as power_retention_output_properties,
+    inference_input_properties as power_retention_inference_input_properties,
+    inference_output_properties as power_retention_inference_output_properties,
 )
-from power_attention.reference import power_full as power_full_reference
-from power_attention.vidrial import power_full as power_full_vidrial, power_full_inference as power_full_vidrial_inference
-from power_attention.vidrial_reference import power_full as power_full_vidrial_reference, power_full_inference as power_full_vidrial_inference_reference
-from power_attention.triton import power_full
-power_full_input_output = {'create_inputs': power_full_create_inputs, 'input_properties': power_full_input_properties, 'output_properties': power_full_output_properties}
-power_full_fn_sets = [
-    {'name': 'power_full_reference', 'extends': 'power_full', 'impl': 'reference',
-        'fn': power_full_reference, **power_full_input_output},
-    {'name': 'power_full', 'extends': 'power_full', 'impl': 'full',
-        'fn': power_full, 'ref': power_full_reference, **power_full_input_output},
-    {'name': 'power_full_vidrial_reference', 'extends': 'power_full', 'impl': 'vidrial_reference',
-        'fn': power_full_vidrial_reference, **power_full_input_output},
-    {'name': 'power_full_vidrial', 'extends': 'power_full', 'impl': 'vidrial',
-        'fn': power_full_vidrial, **power_full_input_output},
+from retention.reference import power_retention as power_retention_reference, power_retention_inference as power_retention_inference_reference
+from retention.vidrial import power_retention as power_retention_vidrial, power_retention_inference as power_retention_vidrial_inference
+from retention.vidrial_reference import power_retention as power_retention_vidrial_reference, power_retention_inference as power_retention_vidrial_inference_reference
+from retention.triton import power_retention, power_retention_inference
+power_retention_input_output = {'create_inputs': power_retention_create_inputs, 'input_properties': power_retention_input_properties, 'output_properties': power_retention_output_properties}
+power_retention_fn_sets = [
+    {'name': 'power_retention_reference', 'extends': 'power_retention', 'impl': 'reference',
+        'fn': power_retention_reference, **power_retention_input_output},
+    {'name': 'power_retention', 'extends': 'power_retention', 'impl': 'full',
+        'fn': power_retention, 'ref': power_retention_reference, **power_retention_input_output},
+    {'name': 'power_retention_vidrial_reference', 'extends': 'power_retention', 'impl': 'vidrial_reference',
+        'fn': power_retention_vidrial_reference, **power_retention_input_output},
+    {'name': 'power_retention_vidrial', 'extends': 'power_retention', 'impl': 'vidrial',
+        'fn': power_retention_vidrial, **power_retention_input_output},
 ]
 # Define parameter ranges
-power_full_param_ranges = {
+power_retention_param_ranges = {
     'b': [1],
-    't': [128, 1024], 
+    't': [31, 128, 1024, 2000], # t=2000 + chunk_size=128 tests padding
     'h': [2],
     'd': [32, 64],
     'qhead_ratio': [1],
@@ -255,19 +257,24 @@ power_full_param_ranges = {
     'chunk_size': [None, 128],
     'deg': [2]
 }
-POWER_FULL_TEST_CASES = fn_set_and_param_range_to_test_cases(power_full_fn_sets, power_full_param_ranges)
+POWER_FULL_TEST_CASES = fn_set_and_param_range_to_test_cases(power_retention_fn_sets, power_retention_param_ranges)
 
 ### Inference tests params ###
-power_full_inference_input_output = {'create_inputs': power_full_create_inputs_inference, 'input_properties': power_full_inference_input_properties, 'output_properties': power_full_inference_output_properties}
-power_full_inference_fn_sets = [
-    {'name': 'power_full_vidrial_inference_reference', 'extends': 'power_full', 'impl': 'vidrial_reference', 
-        'fn': power_full_vidrial_inference_reference, **power_full_inference_input_output, 'fwd_only': True},
-    {'name': 'power_full_vidrial_inference', 'extends': 'power_full', 'impl': 'vidrial', 
-        'fn': power_full_vidrial_inference, 'ref': power_full_vidrial_inference_reference, **power_full_inference_input_output, 'fwd_only': True},
+power_retention_inference_input_output = {'create_inputs': power_retention_create_inputs_inference, 'input_properties': power_retention_inference_input_properties, 'output_properties': power_retention_inference_output_properties}
+power_retention_vidrial_inference_fn_sets = [
+    {'name': 'power_retention_vidrial_inference_reference', 'extends': 'power_retention', 'impl': 'vidrial_reference', 
+        'fn': power_retention_vidrial_inference_reference, **power_retention_inference_input_output, 'fwd_only': True},
+    {'name': 'power_retention_vidrial_inference', 'extends': 'power_retention', 'impl': 'vidrial', 
+        'fn': power_retention_vidrial_inference, 'ref': power_retention_vidrial_inference_reference, **power_retention_inference_input_output, 'fwd_only': True},
 ]
-power_full_inference_param_ranges = {
+power_retention_triton_inference_fn_sets = [
+    {'name': 'power_retention_triton_inference', 'extends': 'power_retention', 'impl': 'triton',
+        'fn': power_retention_inference, 'ref': power_retention_inference_reference, **power_retention_inference_input_output, 'fwd_only': True},
+]
+power_retention_vidrial_inference_param_ranges = {
     'b': [1],
-    't': [1, 64, 128],
+    'tq': [1, 63],
+    'tk': [64, 128],
     'h': [2],
     'd': [32, 64],
     'qhead_ratio': [1, 12],
@@ -277,10 +284,13 @@ power_full_inference_param_ranges = {
     'chunk_size': [128],
     'deg': [2],
     'initial_state': [True, False],
+    'fused_normalizer': [True],
+    'switch_over_seq_len': [128, 512],
 }
-power_full_inference_param_ranges_no_cache = {
+power_retention_vidrial_inference_param_ranges_no_cache = {
     'b': [1],
-    't': [0],
+    'tq': [1],
+    'tk': [0],
     'h': [2],
     'd': [32, 64],
     'qhead_ratio': [1, 8],
@@ -290,6 +300,40 @@ power_full_inference_param_ranges_no_cache = {
     'chunk_size': [128],
     'deg': [2],
     'initial_state': [True],
+    'fused_normalizer': [True],
 }
-POWER_FULL_TEST_CASES += fn_set_and_param_range_to_test_cases(power_full_inference_fn_sets, power_full_inference_param_ranges)
-POWER_FULL_TEST_CASES += fn_set_and_param_range_to_test_cases(power_full_inference_fn_sets, power_full_inference_param_ranges_no_cache)
+power_retention_triton_inference_param_ranges = {
+    'b': [1],
+    'tq': [1, 63],
+    'tk': [64, 128],
+    'h': [2],
+    'd': [32, 64],
+    'qhead_ratio': [1, 12],
+    'dtype': [torch.bfloat16],
+    'device': ['cuda'],
+    'gating': [True],
+    'chunk_size': [128],
+    'deg': [2],
+    'initial_state': [True, False],
+    'fused_normalizer': [False],
+    'switch_over_seq_len': [128, 512],
+}
+power_retention_triton_inference_param_ranges_no_cache = {
+    'b': [1],
+    'tq': [1],
+    'tk': [0],
+    'h': [2],
+    'd': [32, 64],
+    'qhead_ratio': [1, 8],
+    'dtype': [torch.bfloat16],
+    'device': ['cuda'],
+    'gating': [True],
+    'chunk_size': [128],
+    'deg': [2],
+    'initial_state': [True],
+    'fused_normalizer': [False],
+}
+POWER_FULL_TEST_CASES += fn_set_and_param_range_to_test_cases(power_retention_vidrial_inference_fn_sets, power_retention_vidrial_inference_param_ranges)
+POWER_FULL_TEST_CASES += fn_set_and_param_range_to_test_cases(power_retention_vidrial_inference_fn_sets, power_retention_vidrial_inference_param_ranges_no_cache)
+POWER_FULL_TEST_CASES += fn_set_and_param_range_to_test_cases(power_retention_triton_inference_fn_sets, power_retention_triton_inference_param_ranges)
+POWER_FULL_TEST_CASES += fn_set_and_param_range_to_test_cases(power_retention_triton_inference_fn_sets, power_retention_triton_inference_param_ranges_no_cache)

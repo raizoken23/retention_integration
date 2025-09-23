@@ -1,12 +1,12 @@
 # Retention
-[![Build](https://github.com/m-a-n-i-f-e-s-t/power-attention/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/m-a-n-i-f-e-s-t/power-attention/actions/workflows/build-and-test.yml)
+[![Build](https://github.com/m-a-n-i-f-e-s-t/retention/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/m-a-n-i-f-e-s-t/retention/actions/workflows/build-and-test.yml)
 
-This repository contains a PyTorch layer implementing symmetric power retention, a linear-cost variant of attention whose state size can be controlled
+This repository contains a PyTorch layer implementing power retention, a linear-cost variant of attention whose state size can be controlled
 independently of context length and parameter count.
 
 For details on the approach, see our paper: [Scaling Context Requires Rethinking Attention](http://arxiv.org/abs/2507.04239)
 
-Documentation: [https://m-a-n-i-f-e-s-t.github.io/power-attention/](https://m-a-n-i-f-e-s-t.github.io/power-attention/)
+Documentation: [https://m-a-n-i-f-e-s-t.github.io/retention/](https://m-a-n-i-f-e-s-t.github.io/retention/)
 
 
 
@@ -42,11 +42,11 @@ All other dependencies (PyTorch, Ninja build system, etc.) will be automatically
 
 ## Usage
 
-The main entry point is the `power_full` function, which implements symmetric power retention. Here's a basic example:
+The main entry point is the `power_retention` function, which implements symmetric power retention. Here's a basic example:
 
 ```python
 import torch
-from retention import power_full
+from retention import power_retention
 
 # Create input tensors
 batch_size = 2
@@ -63,8 +63,8 @@ log_G = torch.nn.functional.logsigmoid(
     torch.randn(batch_size, seq_len, num_heads, dtype=torch.float32, device='cuda')
 )
 
-# Compute retention
-output = power_full(
+# Compute retention results
+output = power_retention(
     Q=Q, K=K, V=V, 
     log_G=log_G,          # Optional gating tensor
     deg=2,                # Power parameter p
@@ -78,7 +78,7 @@ The package includes a drop-in replacement for standard attention in transformer
 See `train/model.py` for a complete example of using power retention in a GPT-style model:
 
 ```python
-from retention import power_full
+from retention import power_retention
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
@@ -88,8 +88,8 @@ class CausalSelfAttention(nn.Module):
     def forward(self, x):
         # ... projection code ...
         
-        # Use power attention instead of standard attention
-        y = power_full(
+        # Use power retention instead of standard attention
+        y = power_retention(
             Q=q, K=k, V=v, 
             log_G=log_g,
             deg=self.degree,
@@ -132,7 +132,7 @@ python -m perf.benchmark bwd          // Backward pass
 python -m perf.benchmark fwd+bwd      // Forward + backward pass
 ```
 
-See [benchmark](https://github.com/m-a-n-i-f-e-s-t/power-attention/tree/main/perf/README.md) for details.
+See [benchmark](https://github.com/m-a-n-i-f-e-s-t/retention/tree/main/perf/README.md) for details.
 
 ### Documentation
 

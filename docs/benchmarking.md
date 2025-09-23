@@ -1,6 +1,6 @@
 # Benchmarking
 
-This guide explains how to run benchmarks for symmetric power attention and visualize the results.
+This guide explains how to run benchmarks for symmetric power retention and visualize the results.
 
 <div class="admonition note">
 <p class="admonition-title">Prerequisites</p>
@@ -26,19 +26,19 @@ python -m perf.benchmark fwd+bwd
 Running the above command will produce 2 plots: single-problem benchmark and context-scaling benchmark.
 
 ### Single Problem Benchmark
-To understand the performance of power-attention, we compare the execution time of power-attention on a particular problem size (defined by batch, seqlen, heads, head_dim, and chunk_size), versus that of flash-attention on the same problem.
+To understand the performance of retention, we compare the execution time of retention on a particular problem size (defined by batch, seqlen, heads, head_dim, and chunk_size), versus that of flash-attention on the same problem.
 
 ![single_problem_benchmark](../images/single_problem.png)
 
-For example, the above shows that for a problem with batch 1, seqlen 65536, heads 8, head_dim 64, flash-attention and torch's scaled-dot-product-attention function both takes around 50ms to compute the output on H100, whereas power-attention takes 16.8ms, resulting a **3x** throughput improvement.
+For example, the above shows that for a problem with batch 1, seqlen 65536, heads 8, head_dim 64, flash-attention and torch's scaled-dot-product-attention function both takes around 50ms to compute the output on H100, whereas retention takes 16.8ms, resulting a **3x** throughput improvement.
 
 To run benchmark on a different problem, refer to `benchmark.py` for different options one can specify.
 
 
 ### Throughput by Context
 
-We can also vary the context size to get a better idea of the relative throughput of power-attention and flash-attention.
+We can also vary the context size to get a better idea of the relative throughput of retention and flash-attention.
 
 ![throughput_by_ctx](../images/throughput_by_ctx.png)
 
-This shows that as context size increases, the throughput of power-attention stays constant while flash-attention drops due to its quadratic cost.
+This shows that as context size increases, the throughput of retention stays constant while flash-attention drops due to its quadratic cost.

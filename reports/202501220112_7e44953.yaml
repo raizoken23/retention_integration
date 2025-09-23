@@ -332,8 +332,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.56294992545736e-06
 - attrs:
     t: 16384
@@ -349,8 +349,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.6121330140304053e-06
 - attrs:
     t: 16384
@@ -366,8 +366,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.5861645579207106e-06
 - attrs:
     t: 16384
@@ -383,8 +383,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.607764978776686e-05
 - attrs:
     t: 16384
@@ -400,8 +400,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.781423897133209e-05
 - attrs:
     t: 16384
@@ -417,8 +417,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.3543834686279297e-06
 - attrs:
     t: 16384
@@ -434,8 +434,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.591288077586796e-06
 - attrs:
     t: 16384
@@ -450,8 +450,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.02763056755065918
 - attrs:
     t: 16384
@@ -466,8 +466,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.22438836097717285
 - attrs:
     t: 16384
@@ -483,8 +483,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.2099846976052504e-06
 - attrs:
     t: 16384
@@ -500,8 +500,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.730756588993245e-06
 - attrs:
     t: 16384
@@ -517,8 +517,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.6290238136207336e-06
 - attrs:
     t: 16384
@@ -534,8 +534,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 8.19426350062713e-05
 - attrs:
     t: 16384
@@ -551,8 +551,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 6.582938658539206e-05
 - attrs:
     t: 16384
@@ -568,8 +568,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.082437731587561e-06
 - attrs:
     t: 16384
@@ -585,8 +585,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.9537239899800625e-06
 - attrs:
     t: 16384
@@ -601,8 +601,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.02300584316253662
 - attrs:
     t: 16384
@@ -617,8 +617,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.16732239723205566
 - attrs:
     t: 16384
@@ -634,8 +634,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.879599600826623e-06
 - attrs:
     t: 16384
@@ -651,8 +651,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.6121330140304053e-06
 - attrs:
     t: 16384
@@ -668,8 +668,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.6867473959791823e-06
 - attrs:
     t: 512
@@ -685,8 +685,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.2831977755922708e-06
 - attrs:
     t: 512
@@ -702,8 +702,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.7944261117008864e-06
 - attrs:
     t: 512
@@ -719,8 +719,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 9.64370656220126e-07
 - attrs:
     t: 16384
@@ -736,8 +736,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.607764978776686e-05
 - attrs:
     t: 16384
@@ -753,8 +753,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.781423897133209e-05
 - attrs:
     t: 16384
@@ -770,8 +770,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.905726432800293e-06
 - attrs:
     t: 16384
@@ -787,8 +787,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.591288077586796e-06
 - attrs:
     t: 512
@@ -804,8 +804,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.3709390259464271e-05
 - attrs:
     t: 512
@@ -821,8 +821,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.5787289157742634e-05
 - attrs:
     t: 512
@@ -838,8 +838,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.430511474609375e-06
 - attrs:
     t: 512
@@ -855,8 +855,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.8103690965508576e-06
 - attrs:
     t: 16384
@@ -871,8 +871,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.027318477630615234
 - attrs:
     t: 512
@@ -887,8 +887,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.02098870277404785
 - attrs:
     t: 16384
@@ -903,8 +903,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.22438836097717285
 - attrs:
     t: 512
@@ -919,8 +919,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.08386147022247314
 - attrs:
     t: 16384
@@ -936,8 +936,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.1478166420129128e-06
 - attrs:
     t: 16384
@@ -953,8 +953,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.007526513305493e-06
 - attrs:
     t: 16384
@@ -970,8 +970,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.8506855212763185e-06
 - attrs:
     t: 512
@@ -987,8 +987,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 7.814492164470721e-06
 - attrs:
     t: 512
@@ -1004,8 +1004,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.962682396580931e-06
 - attrs:
     t: 512
@@ -1021,8 +1021,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.1860923905260279e-06
 - attrs:
     t: 16384
@@ -1038,8 +1038,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.4374864703277126e-05
 - attrs:
     t: 16384
@@ -1055,8 +1055,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.897204442182556e-05
 - attrs:
     t: 16384
@@ -1072,8 +1072,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.16066837310791e-06
 - attrs:
     t: 16384
@@ -1089,8 +1089,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.6950862067897106e-06
 - attrs:
     t: 512
@@ -1106,8 +1106,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.9933906514779665e-05
 - attrs:
     t: 512
@@ -1123,8 +1123,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.00220565602649e-05
 - attrs:
     t: 512
@@ -1140,8 +1140,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.5087425708770752e-06
 - attrs:
     t: 512
@@ -1157,8 +1157,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.547413714637514e-06
 - attrs:
     t: 16384
@@ -1173,8 +1173,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.029577970504760742
 - attrs:
     t: 512
@@ -1189,8 +1189,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.021055221557617188
 - attrs:
     t: 16384
@@ -1205,8 +1205,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.17127108573913574
 - attrs:
     t: 512
@@ -1221,8 +1221,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.06202307343482971
 - attrs:
     t: 16384
@@ -1238,8 +1238,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.603928118740441e-06
 - attrs:
     t: 16384
@@ -1255,8 +1255,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.6121330140304053e-06
 - attrs:
     t: 16384
@@ -1272,8 +1272,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.5852332353460952e-06
 - attrs:
     t: 512
@@ -1289,8 +1289,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.3181223721403512e-06
 - attrs:
     t: 512
@@ -1306,8 +1306,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.7944261117008864e-06
 - attrs:
     t: 512
@@ -1323,8 +1323,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 8.870708825270412e-07
 - attrs:
     t: 16384
@@ -1340,8 +1340,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.607764978776686e-05
 - attrs:
     t: 16384
@@ -1357,8 +1357,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 5.781423897133209e-05
 - attrs:
     t: 16384
@@ -1374,8 +1374,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.905726432800293e-06
 - attrs:
     t: 16384
@@ -1391,8 +1391,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.5613543332146946e-06
 - attrs:
     t: 512
@@ -1408,8 +1408,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.3709390259464271e-05
 - attrs:
     t: 512
@@ -1425,8 +1425,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.5787289157742634e-05
 - attrs:
     t: 512
@@ -1442,8 +1442,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.430511474609375e-06
 - attrs:
     t: 512
@@ -1459,8 +1459,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.8103686418035068e-06
 - attrs:
     t: 16384
@@ -1475,8 +1475,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.02072453498840332
 - attrs:
     t: 512
@@ -1491,8 +1491,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.01720583438873291
 - attrs:
     t: 16384
@@ -1507,8 +1507,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.22438836097717285
 - attrs:
     t: 512
@@ -1523,8 +1523,8 @@
     deg: 1
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.08386147022247314
 - attrs:
     t: 16384
@@ -1540,8 +1540,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.1280283110390883e-06
 - attrs:
     t: 16384
@@ -1557,8 +1557,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 3.730756588993245e-06
 - attrs:
     t: 16384
@@ -1574,8 +1574,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.9792080365732545e-06
 - attrs:
     t: 512
@@ -1591,8 +1591,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 7.815074241079856e-06
 - attrs:
     t: 512
@@ -1608,8 +1608,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.962682396580931e-06
 - attrs:
     t: 512
@@ -1625,8 +1625,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.1952281511184992e-06
 - attrs:
     t: 16384
@@ -1642,8 +1642,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 8.19426350062713e-05
 - attrs:
     t: 16384
@@ -1659,8 +1659,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 6.582938658539206e-05
 - attrs:
     t: 16384
@@ -1676,8 +1676,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.383027549512917e-06
 - attrs:
     t: 16384
@@ -1693,8 +1693,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 4.144464128330583e-06
 - attrs:
     t: 512
@@ -1710,8 +1710,8 @@
     direction: bwd
     relative: false
     which: K_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.9934377633035183e-05
 - attrs:
     t: 512
@@ -1727,8 +1727,8 @@
     direction: bwd
     relative: false
     which: Q_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.00220565602649e-05
 - attrs:
     t: 512
@@ -1744,8 +1744,8 @@
     direction: bwd
     relative: false
     which: V_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 1.430511474609375e-06
 - attrs:
     t: 512
@@ -1761,8 +1761,8 @@
     direction: bwd
     relative: false
     which: log_G_grad
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 2.547497160776402e-06
 - attrs:
     t: 16384
@@ -1777,8 +1777,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.021698832511901855
 - attrs:
     t: 512
@@ -1793,8 +1793,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.018190383911132812
 - attrs:
     t: 16384
@@ -1809,8 +1809,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.16732239723205566
 - attrs:
     t: 512
@@ -1825,8 +1825,8 @@
     deg: 2
     direction: fwd
     relative: false
-    benchmark: power_full_precision
-    fn: power_full_precision
+    benchmark: power_retention_precision
+    fn: power_retention_precision
   value: 0.061885297298431396
 - attrs:
     b: 1
@@ -1841,8 +1841,8 @@
     deg: 2
     direction: bwd
     which: K_grad
-    benchmark: power_full_precision_mini
-    fn: power_full_precision
+    benchmark: power_retention_precision_mini
+    fn: power_retention_precision
   value: 1.9933906514779665e-05
 - attrs:
     b: 1
@@ -1857,8 +1857,8 @@
     deg: 2
     direction: bwd
     which: Q_grad
-    benchmark: power_full_precision_mini
-    fn: power_full_precision
+    benchmark: power_retention_precision_mini
+    fn: power_retention_precision
   value: 2.00220565602649e-05
 - attrs:
     b: 1
@@ -1873,8 +1873,8 @@
     deg: 2
     direction: bwd
     which: V_grad
-    benchmark: power_full_precision_mini
-    fn: power_full_precision
+    benchmark: power_retention_precision_mini
+    fn: power_retention_precision
   value: 1.5087425708770752e-06
 - attrs:
     b: 1
@@ -1889,8 +1889,8 @@
     deg: 2
     direction: bwd
     which: log_G_grad
-    benchmark: power_full_precision_mini
-    fn: power_full_precision
+    benchmark: power_retention_precision_mini
+    fn: power_retention_precision
   value: 2.547413714637514e-06
 - attrs:
     b: 1
@@ -1904,8 +1904,8 @@
     chunk_size: 128
     deg: 2
     direction: fwd
-    benchmark: power_full_precision_mini
-    fn: power_full_precision
+    benchmark: power_retention_precision_mini
+    fn: power_retention_precision
   value: 0.06202307343482971
 - attrs:
     b: 1
@@ -2140,8 +2140,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.955647659301758
 - attrs:
     b: 2
@@ -2156,8 +2156,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.367308807373047
 - attrs:
     b: 2
@@ -2172,8 +2172,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 6.775398635864258
 - attrs:
     b: 2
@@ -2188,8 +2188,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.727487945556641
 - attrs:
     b: 2
@@ -2204,8 +2204,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.7006080627441407
 - attrs:
     b: 2
@@ -2220,8 +2220,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.6366080284118651
 - attrs:
     b: 2
@@ -2236,8 +2236,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.8004480361938477
 - attrs:
     b: 2
@@ -2252,8 +2252,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.7415167808532714
 - attrs:
     b: 2
@@ -2268,8 +2268,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.467494201660156
 - attrs:
     b: 2
@@ -2284,8 +2284,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.741375732421875
 - attrs:
     b: 2
@@ -2300,8 +2300,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 6.110003280639648
 - attrs:
     b: 2
@@ -2316,8 +2316,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.188198661804199
 - attrs:
     b: 2
@@ -2332,8 +2332,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.389146423339845
 - attrs:
     b: 2
@@ -2348,8 +2348,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 22.478541564941406
 - attrs:
     b: 2
@@ -2364,8 +2364,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 31.809999084472658
 - attrs:
     b: 2
@@ -2380,8 +2380,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 23.617691040039062
 - attrs:
     b: 2
@@ -2396,8 +2396,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 14.100326538085938
 - attrs:
     b: 2
@@ -2412,8 +2412,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 9.863423919677734
 - attrs:
     b: 2
@@ -2428,8 +2428,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 14.474546813964844
 - attrs:
     b: 2
@@ -2444,8 +2444,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 10.168780517578124
 - attrs:
     b: 2
@@ -2460,8 +2460,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 42.98664855957031
 - attrs:
     b: 2
@@ -2476,8 +2476,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 29.96126708984375
 - attrs:
     b: 2
@@ -2492,8 +2492,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 43.73796081542969
 - attrs:
     b: 2
@@ -2508,8 +2508,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.55293426513672
 - attrs:
     b: 2
@@ -2524,8 +2524,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.49169921875
 - attrs:
     b: 2
@@ -2540,8 +2540,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.48156280517578
 - attrs:
     b: 2
@@ -2556,8 +2556,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 35.648565673828124
 - attrs:
     b: 2
@@ -2572,8 +2572,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 35.648153686523436
 - attrs:
     b: 2
@@ -2588,8 +2588,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 71.5667510986328
 - attrs:
     b: 2
@@ -2604,8 +2604,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 71.80067749023438
 - attrs:
     b: 2
@@ -2620,8 +2620,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 94.13447570800781
 - attrs:
     b: 2
@@ -2636,8 +2636,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 94.47219848632812
 - attrs:
     b: 2
@@ -2652,8 +2652,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 102.10467834472657
 - attrs:
     b: 2
@@ -2668,8 +2668,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 102.3284698486328
 - attrs:
     b: 2
@@ -2684,8 +2684,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 126.76597900390625
 - attrs:
     b: 2
@@ -2700,8 +2700,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 127.00718383789062
 - attrs:
     b: 2
@@ -2716,8 +2716,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.600807189941406
 - attrs:
     b: 2
@@ -2732,8 +2732,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.5776123046875
 - attrs:
     b: 2
@@ -2748,8 +2748,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 35.626495361328125
 - attrs:
     b: 2
@@ -2764,8 +2764,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 35.662541198730466
 - attrs:
     b: 2
@@ -2780,8 +2780,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 11.165542221069336
 - attrs:
     b: 2
@@ -2796,8 +2796,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 11.357952117919922
 - attrs:
     b: 2
@@ -2812,8 +2812,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 11.198003387451172
 - attrs:
     b: 2
@@ -2828,8 +2828,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 11.433061981201172
 - attrs:
     b: 2
@@ -2844,8 +2844,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 41.69778900146484
 - attrs:
     b: 2
@@ -2860,8 +2860,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 41.938890075683595
 - attrs:
     b: 2
@@ -2876,8 +2876,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 43.847119140625
 - attrs:
     b: 2
@@ -2892,8 +2892,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 44.01930694580078
 - attrs:
     b: 2
@@ -2908,8 +2908,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed_mini
-    fn: power_full_speed
+    benchmark: power_retention_speed_mini
+    fn: power_retention_speed
   value: 2.869759941101074
 - attrs:
     b: 2
@@ -3104,8 +3104,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.0954750061035154
 - attrs:
     b: 64
@@ -3120,8 +3120,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.430387496948242
 - attrs:
     b: 64
@@ -3136,8 +3136,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 6.9200897216796875
 - attrs:
     b: 64
@@ -3152,8 +3152,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.79583969116211
 - attrs:
     b: 64
@@ -3168,8 +3168,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.7279488563537597
 - attrs:
     b: 64
@@ -3184,8 +3184,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.6477184295654297
 - attrs:
     b: 64
@@ -3200,8 +3200,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.827788734436035
 - attrs:
     b: 64
@@ -3216,8 +3216,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 1.7480192184448242
 - attrs:
     b: 64
@@ -3232,8 +3232,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.647001838684082
 - attrs:
     b: 64
@@ -3248,8 +3248,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.8175617218017575
 - attrs:
     b: 64
@@ -3264,8 +3264,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 6.281267356872559
 - attrs:
     b: 64
@@ -3280,8 +3280,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.264895820617676
 - attrs:
     b: 64
@@ -3296,8 +3296,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 41.52161407470703
 - attrs:
     b: 64
@@ -3312,8 +3312,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 29.372006225585938
 - attrs:
     b: 64
@@ -3328,8 +3328,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 42.95971527099609
 - attrs:
     b: 64
@@ -3344,8 +3344,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 30.52938232421875
 - attrs:
     b: 64
@@ -3360,8 +3360,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 14.578380584716797
 - attrs:
     b: 64
@@ -3376,8 +3376,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 9.72200927734375
 - attrs:
     b: 64
@@ -3392,8 +3392,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 14.93442611694336
 - attrs:
     b: 64
@@ -3408,8 +3408,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 10.02977294921875
 - attrs:
     b: 64
@@ -3424,8 +3424,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 54.63009033203125
 - attrs:
     b: 64
@@ -3440,8 +3440,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 36.76098785400391
 - attrs:
     b: 64
@@ -3456,8 +3456,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 55.35114440917969
 - attrs:
     b: 64
@@ -3472,8 +3472,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 37.36350860595703
 - attrs:
     b: 64
@@ -3488,8 +3488,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.405324649810791
 - attrs:
     b: 64
@@ -3504,8 +3504,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.409830379486084
 - attrs:
     b: 64
@@ -3520,8 +3520,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.6667552947998048
 - attrs:
     b: 64
@@ -3536,8 +3536,8 @@
     deg: 1
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.6814465522766113
 - attrs:
     b: 64
@@ -3552,8 +3552,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.1959681510925293
 - attrs:
     b: 64
@@ -3568,8 +3568,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.4217087745666506
 - attrs:
     b: 64
@@ -3584,8 +3584,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.844825553894043
 - attrs:
     b: 64
@@ -3600,8 +3600,8 @@
     deg: 1
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 3.0801406860351563
 - attrs:
     b: 64
@@ -3616,8 +3616,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.603444671630859
 - attrs:
     b: 64
@@ -3632,8 +3632,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 4.832255935668945
 - attrs:
     b: 64
@@ -3648,8 +3648,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.427712249755859
 - attrs:
     b: 64
@@ -3664,8 +3664,8 @@
     deg: 1
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 5.6557060241699215
 - attrs:
     b: 64
@@ -3680,8 +3680,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.4160256385803223
 - attrs:
     b: 64
@@ -3696,8 +3696,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.4198657035827638
 - attrs:
     b: 64
@@ -3712,8 +3712,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.655129623413086
 - attrs:
     b: 64
@@ -3728,8 +3728,8 @@
     deg: 2
     direction: bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 2.671052837371826
 - attrs:
     b: 64
@@ -3744,8 +3744,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 0.7062527894973755
 - attrs:
     b: 64
@@ -3760,8 +3760,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 0.931430435180664
 - attrs:
     b: 64
@@ -3776,8 +3776,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 0.7324671506881714
 - attrs:
     b: 64
@@ -3792,8 +3792,8 @@
     deg: 2
     direction: fwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 0.9657344341278076
 - attrs:
     b: 64
@@ -3808,8 +3808,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 3.1259678840637206
 - attrs:
     b: 64
@@ -3824,8 +3824,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 3.352627182006836
 - attrs:
     b: 64
@@ -3840,8 +3840,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 3.304550552368164
 - attrs:
     b: 64
@@ -3856,8 +3856,8 @@
     deg: 2
     direction: fwd+bwd
     gpus: 2xA6000
-    benchmark: power_full_speed
-    fn: power_full_speed
+    benchmark: power_retention_speed
+    fn: power_retention_speed
   value: 3.5363840103149413
 - attrs:
     b: 64

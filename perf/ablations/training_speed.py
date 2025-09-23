@@ -1,13 +1,13 @@
 import torch
-from power_attention.vidrial_fused import power_full
-from power_attention.create_inputs import create_inputs
+from retention.vidrial_fused import power_retention
+from retention.create_inputs import create_inputs
 from fla.layers.gla import GatedLinearAttention
 from fla.layers.rwkv7 import RWKV7Attention
 from perf._timing import estimate_runtime, get_compiled_version, sanitize_kwargs
 from flash_attn.flash_attn_interface import flash_attn_func
 from vidrial.py_utils.common import default_d_tile
 from vidrial.kernels.sympow_mma.dimensions import sympow_dim
-from vidrial.jit.decorator import set_settings, PickBest
+from vidrial.jit.settings import settings, PickBest
 import pandas as pd
 import logging
 from perf.ablations.model import PowerAttention
@@ -100,7 +100,7 @@ def compare():
     logging.basicConfig(level=logging.ERROR)
     qhead_ratio = 8
 
-    with set_settings(policy=PickBest):
+    with settings.set(policy=PickBest):
         for t in [128, 512, 2048, 8192, 32768, 65536]:
             print(f"========== {t=} ==========")
             gla_measurement = measure_gla_time(b=b, t=t, h=h, qhead_ratio=qhead_ratio, d=d, chunk_size=chunk_size, deg=deg, gating=gating, dtype=dtype)

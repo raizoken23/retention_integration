@@ -21,7 +21,7 @@ We follow semantic versioning (MAJOR.MINOR.PATCH):
 1. Update version in `pyproject.toml`:
 ```toml
 [project]
-name = "power-attention"
+name = "retention"
 version = "1.2.3"  # New version number
 ```
 

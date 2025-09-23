@@ -49,7 +49,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [power_attention]
+          paths: [retention]
           options:
             show_source: true
             show_root_heading: true

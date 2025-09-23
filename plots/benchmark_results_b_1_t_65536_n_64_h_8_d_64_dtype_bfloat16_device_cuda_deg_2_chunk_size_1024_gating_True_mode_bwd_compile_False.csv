@@ -1,0 +1,7 @@
+,Implementation,Query State (ms),Update State (ms),Chunked Attention (ms),Discumsum (ms),Total (ms)
+0,Power Full (Triton),0.0,0.0,0.0,0.0,28.565942764282227
+1,Power Full (Vidrial),0.0,0.0,0.0,0.0,25.970258167811803
+2,Power Full Breakdown (Triton),13.85369600568499,6.7234377179827005,5.836507456643241,1.8180388723100935,0.0
+3,Power Full Breakdown (Vidrial),9.516617230006627,7.4999222074236185,5.836507456643241,1.8180388723100935,0.0
+4,SDPA,0.0,0.0,0.0,0.0,121.53943743024554
+5,Flash Attention,0.0,0.0,0.0,0.0,114.72881317138672

@@ -12,8 +12,8 @@ We welcome contributions to Power Attention! This guide will help you get starte
 
 1. Fork the repository and clone your fork:
 ```bash
-git clone https://github.com/yourusername/power-attention.git
-cd power-attention
+git clone https://github.com/yourusername/retention.git
+cd retention
 ```
 
 2. Set up the development environment:

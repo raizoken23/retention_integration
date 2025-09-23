@@ -33,7 +33,7 @@ def get_dependencies():
 dev_requires = get_dependencies()
 
 setup(
-    name="power-attention",
+    name="retention",
     version=get_version(),
     packages=find_packages(
         exclude=('build', 'csrc', 'include', 'tests', 'dist', 'benchmarks'),

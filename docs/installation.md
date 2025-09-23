@@ -5,7 +5,7 @@ Power Attention can be installed either via pre-built wheels or built from sourc
 ## From PyPI (Recommended)
 
 ```bash
-pip install power-attention
+pip install retention
 ```
 
 ## From Source
@@ -18,8 +18,8 @@ pip install power-attention
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/manifest-ai/power-attention.git
-cd power-attention
+git clone https://github.com/manifest-ai/retention.git
+cd retention
 ```
 
 2. Install with development dependencies:
@@ -71,7 +71,7 @@ pip install -e .[dev]
 
 ```python
 import torch
-from power_attention.power_full import create_inputs, power_full
+from retention.power_retention import create_inputs, power_retention
 
 t = 1024
 chunk_size=128
@@ -83,10 +83,10 @@ gating = True
 dtype = torch.float16
 inputs = create_inputs(b=b, t=t, h=h, d=d, dtype=dtype, device='cuda', gating=gating, chunk_size=chunk_size, deg=deg, requires_grad=True)
 
-output = power_full(**inputs)
+output = power_retention(**inputs)
 torch.autograd.backward((output,), grad_tensors=(output,))
 
-print("Ran power attention forwards & backwards, output shape:", output.shape)
+print("Ran power retention forwards & backwards, output shape:", output.shape)
 ```
 
 ## Training Example
@@ -150,4 +150,4 @@ print(f"CUDA version: {torch.version.cuda}")
 - Use chunking with smaller chunk sizes
 - Try fast build with lower degree parameters
 
-For more help, check [GitHub issues](https://github.com/manifest-ai/power-attention/issues).
+For more help, check [GitHub issues](https://github.com/manifest-ai/retention/issues).

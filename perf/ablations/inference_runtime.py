@@ -1,15 +1,15 @@
 import torch
-from power_attention import power_full
-from power_attention.vidrial_fused import power_full_inference
-from power_attention.create_inputs import create_inference_inputs
-from power_attention.vidrial_fused import update_state, query_state, attention
+from retention import power_retention
+from retention.vidrial_fused import power_retention_inference
+from retention.create_inputs import create_inference_inputs
+from retention.vidrial_fused import update_state, query_state, attention
 from fla.layers.gla import GatedLinearAttention
 from fla.layers.rwkv7 import RWKV7Attention
 from perf._timing import estimate_runtime, get_compiled_version, sanitize_kwargs
 from perf.ablations.model import PowerAttention
 from vidrial.py_utils.common import default_d_tile
 from vidrial.kernels.sympow_mma.dimensions import sympow_dim
-from vidrial.jit.decorator import set_settings, PickBest
+from vidrial.jit.settings import settings, PickBest
 import pandas as pd
 import logging
 import gc
@@ -72,10 +72,10 @@ def measure_total_time(**kwargs):
     kwargs['t'] = kwargs['t'] % (kwargs['switch_over_seq_len'] + 1) if kwargs['t'] < (kwargs['switch_over_seq_len'] + 1) else (kwargs['t'] % (kwargs['chunk_size'] + 1))
     inputs = create_inference_inputs(**{**kwargs, 'initial_state': t > kwargs['switch_over_seq_len'], 'device': 'cuda'})
     if kwargs.get('profile', False):
-        sanitize_kwargs(power_full_inference)(**inputs)
+        sanitize_kwargs(power_retention_inference)(**inputs)
         return 0
     else:
-        time = estimate_runtime(get_compiled_version(power_full_inference, inputs, direction='fwd', compile=False))
+        time = estimate_runtime(get_compiled_version(power_retention_inference, inputs, direction='fwd', compile=False))
         if kwargs['t'] > kwargs['switch_over_seq_len'] and kwargs['t'] % kwargs['chunk_size'] == 0:
             time -= measure_update_state_time(**kwargs) * (chunk_size - 1)
         torch.cuda.synchronize()
@@ -207,7 +207,7 @@ def inference_time_breakdown(profile=False):
     print(f"Measuring runtime for {b=} {t=} {h=} {d=} {chunk_size=} {deg=} {gating=} {dtype=}")
     logging.basicConfig(level=logging.ERROR)
 
-    with set_settings(policy=PickBest):
+    with settings.set(policy=PickBest):
         for qhead_ratio in [1, 8]:
             print(f"========== {qhead_ratio=} ==========")
             df.append({
@@ -258,7 +258,7 @@ def compare_with_flashinfer():
     logging.basicConfig(level=logging.ERROR)
     qhead_ratio = 8
 
-    with set_settings(policy=PickBest):
+    with settings.set(policy=PickBest):
         for t in [128, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]:
             print(f"========== {t=} ==========")
             power_measurement = measure_power_model_time(b=b, t=t, h=h, qhead_ratio=qhead_ratio, d=d, chunk_size=chunk_size, deg=deg, gating=gating, dtype=dtype, switch_over_seq_len=switch_over_seq_len)
@@ -339,7 +339,7 @@ def torch_profile():
     print(f"Profiling runtime for {b=} {t=} {h=} {d=} {chunk_size=} {deg=} {gating=} {dtype=} {qhead_ratio=}")
     inputs = create_inference_inputs(b=b, t=t, h=h, d=d, qhead_ratio=qhead_ratio, dtype=dtype, device='cuda', gating=gating, chunk_size=chunk_size, deg=deg, initial_state=True)
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True, profile_memory=True, with_stack=True) as prof:
-        power_full_inference(inputs['Q'], inputs['K'], inputs['V'], inputs['log_G'], inputs['state'], deg=deg, scale=1.0 / d**0.5, chunk_size=chunk_size)
+        power_retention_inference(inputs['Q'], inputs['K'], inputs['V'], inputs['log_G'], inputs['state'], deg=deg, scale=1.0 / d**0.5, chunk_size=chunk_size)
     prof.export_chrome_trace(f'power_inference_time_breakdown_{b}_{t}_{h}_{d}_{chunk_size}_{deg}_{gating}_{dtype}_{qhead_ratio}.json')
 
     print(prof.key_averages(group_by_stack_n=2).table(sort_by='cuda_time_total', row_limit=10))

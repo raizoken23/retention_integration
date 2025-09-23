@@ -4,12 +4,12 @@ This page contains the API reference for the Power Attention library.
 
 ## High-Level Interface
 
-The main entry point for using symmetric power attention in your models.
+The main entry point for using symmetric power retention in your models.
 
-Main implementation of symmetric power attention, which generalizes linear transformers using symmetric power embeddings. 
+Main implementation of symmetric power retention, which generalizes linear transformers using symmetric power embeddings. 
 Provides O(n) complexity for long sequences through an efficient RNN formulation.
 
-::: power_attention.power_full
+::: retention.power_retention
     options:
         show_root_heading: false
         show_source: true
@@ -24,7 +24,7 @@ and custom implementations.
 
 Computes attention scores using symmetric power embeddings, equivalent to raising attention weights to an even power.
 
-::: power_attention._attention
+::: retention._attention
     options:
         show_root_heading: true
         show_source: true
@@ -39,7 +39,7 @@ Functions for managing the RNN state representation, which achieves massive memo
 
 Computes expanded state vectors using symmetric power embeddings, achieving up to 96% memory reduction for deg=4.
 
-::: power_attention._update_state
+::: retention._update_state
     options:
         show_root_heading: true
         show_source: true
@@ -50,7 +50,7 @@ Computes expanded state vectors using symmetric power embeddings, achieving up t
 
 Computes how queries interact with the compressed state representation from previous chunks.
 
-::: power_attention._query_state
+::: retention._query_state
     options:
         show_root_heading: true
         show_source: true
@@ -61,7 +61,7 @@ Computes how queries interact with the compressed state representation from prev
 
 Implements the RNN state update equations for O(n) processing of long sequences.
 
-::: power_attention._discumsum
+::: retention._discumsum
     options:
         show_root_heading: true
         show_source: true
@@ -72,9 +72,9 @@ Implements the RNN state update equations for O(n) processing of long sequences.
 
 Helper functions for testing and benchmarking.
 
-Create sample inputs for testing power attention, with appropriate initialization for stable training.
+Create sample inputs for testing power retention, with appropriate initialization for stable training.
 
-::: power_attention.power_full
+::: retention.power_retention
     options:
         show_root_heading: true
         show_source: true

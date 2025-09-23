@@ -15,7 +15,7 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$PROJECT_ROOT" || exit 1
 
 # Set the virtualenv path
-VENV_PATH="$HOME/.power-attention-regression-venv"
+VENV_PATH="$HOME/.retention-regression-venv"
 
 # Create virtualenv if it doesn't exist
 if [ ! -d "$VENV_PATH" ]; then

@@ -68,3 +68,14 @@ train/out/
 
 # Migration scripts
 reports/migrate.py
+
+# Tensors
+*.pt
+*.safetensors
+tokenizer.json
+tokenizer_config.json
+vocab.json
+*index.json
+generate_stats.json
+train/models/powercoder/*.json
+train/models/powercoder/*.txt

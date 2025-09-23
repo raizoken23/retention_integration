@@ -1,6 +1,6 @@
 # Get version from pyproject.toml
 VERSION := $(shell python scripts/get_version.py)
-PACKAGE_NAME := power-attention
+PACKAGE_NAME := retention
 
 .PHONY: clean check-version check-test-version release release-test help deps-dev kernel refresh-deps refresh-deps-dev
 
