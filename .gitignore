@@ -79,3 +79,5 @@ vocab.json
 generate_stats.json
 train/models/powercoder/*.json
 train/models/powercoder/*.txt
+
+.ipynb_checkpoints/

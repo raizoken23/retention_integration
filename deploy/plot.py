@@ -79,8 +79,8 @@ def reconstruct_token_durations(instance: Dict[str, Any]) -> List[float]:
         durations.append(residual)
     # Drop first and last elements which are typically less reliable
     if len(durations) >= 3:
-        return durations[1:-1]
-    return []
+        durations = durations[1:-1]
+    return durations
 
 
 def label_for_instance(instance: Dict[str, Any]) -> str:
@@ -105,6 +105,11 @@ def label_for_instance(instance: Dict[str, Any]) -> str:
         parts.append(str(tokenizer["name_or_path"]))
     return " | ".join(parts) if parts else "run"
 
+COLOR_MAP = {
+    'Transformer': '#810080',
+    'Powercoder': '#fe0000',
+    'Retention': '#fe0000',
+}
 
 def main() -> None:
     args = parse_args()
@@ -136,7 +141,7 @@ def main() -> None:
 
         # Plot cumulative
         cum_minutes = [v / 60.0 for v in cum]
-        line_cum = ax_cum.plot(token_idx, cum_minutes, label=label, linewidth=1.8)[0]
+        line_cum = ax_cum.plot(token_idx, cum_minutes, label=label, linewidth=3.0, color=COLOR_MAP.get(label, None))[0]
         # Plot per-token duration
         if args.duration_plot:
             ax_per.plot(token_idx, durations, label=label, linewidth=1.2, alpha=0.9)
