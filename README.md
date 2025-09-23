@@ -16,7 +16,7 @@ On a wide range of FLOPs budgets, power retention models achieve the lowest perp
 ![Power Retention is FLOP-optimal on long context training](./plots/flops.png)
 
 ### Inference Performance
-In a head-to-head comparison on long-context generation, power retention models like [PowerCoder](HUGGINGFACE_URL) are able to attain vastly greater token througput than transformers.
+In a head-to-head comparison on long-context generation, power retention models like [PowerCoder](https://huggingface.co/manifestai/powercoder-3b) are able to attain vastly greater token througput than transformers.
 
 ![Power Retention is faster on long context inference](./plots/generation_time.png)
 

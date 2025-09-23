@@ -6,7 +6,7 @@ This directory contains example code to train, generate, serve a power-retention
 ![generation](./generation_time.png)
 *(Cumulative token generation time for PowerCoder, with and without chunking enabled )*
 
-All examples here uses [PowerCoder](HUGGINGFACE_URL), which is a Llama-based model adapted from *bigcode/starcoder2-3b* and trained on additional coding data, using power retention.
+All examples here uses [PowerCoder](https://huggingface.co/manifestai/powercoder-3b), which is a Llama-based model adapted from *bigcode/starcoder2-3b* and trained on additional coding data, using power retention.
 
 
 ## Env setup
@@ -36,7 +36,7 @@ For other datasets, it's recommended to change the dataloader's `collate_fn` cor
 
 ## Generate
 
-To generate using a pretrained model (e.g., `HUGGINGFACE_REPO`), 
+To generate using a pretrained model (e.g., `manifestai/powercoder-3b`), 
 
 ```bash
 python generate.py # interact with the model
