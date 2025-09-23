@@ -69,22 +69,21 @@ To compare an retention-based model and an attention-based model in terms of tok
 
 ```bash
 python generate.py --input-file train.py --no-eos --stats-only --max-new-tokens 8192 --model bigcode/starcoder2-3b
-python generate.py --input-file train.py --no-eos --stats-only --max-new-tokens 8192 --model --switch-over-seq-len 1024
+python generate.py --input-file train.py --no-eos --stats-only --max-new-tokens 8192 --model manifestai/powercoder-3b --switch-over-seq-len 1024
 ```
 The first command uses the `train.py` file as prompt and uses the `bigcode/starcoder2-3b` model to generate 8192 new tokens (disregarding eos tokens as we only care about measurement). The second command uses PowerCoder for generation. Both commands writes the collected statistics into `generate_stats.json`.
+
+Note that almost all transformer-based LLMs has has sliding window enabled, which limits the amount of context it sees. To compare head-to-head with a full transformer without a sliding window, run the following
+
+```bash
+python generate.py --input-file train.py --no-eos --stats-only --max-new-tokens 8192 --model bigcode/starcoder2-3b --disable-sliding-window
+```
 
 To visualize the measurement result, run
 
 ```bash
 python plot.py --generate_stats generate_stats.json --output generation_time.png
 ```
-
-You can also fit a polynormial model to the measurment and project the total token generation time for more that the measured context size via
-
-```bash
-python plot.py --generate_stats generate_stats.json --output generation_time.png --extend 100000
-```
-
 
 ## Serve Power Retention
 
