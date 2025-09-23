@@ -12,15 +12,15 @@ Documentation: [https://m-a-n-i-f-e-s-t.github.io/retention/](https://m-a-n-i-f-
 
 ### Training Performance
 
-On a given flops budget, power-retention-based models achieves the lowest perplexity. 
-![Power Retention is flops optimal on long context training](./plots/flops.png)
+On a wide range of FLOPs budgets, power retention models achieve the lowest perplexity. 
+![Power Retention is FLOP-optimal on long context training](./plots/flops.png)
 
 ### Inference Performance
-On a head-to-head comparison in long-context generation tasks, power-retention-based model like [PowerCoder](HUGGINGFACE_URL) is able to attain 4x token-througput than transformer-based models.
+In a head-to-head comparison on long-context generation, power retention models like [PowerCoder](HUGGINGFACE_URL) are able to attain vastly greater token througput than transformers.
 
-![Power Retention is flops optimal on long context training](./plots/generation_time.png)
+![Power Retention is faster on long context inference](./plots/generation_time.png)
 
-*(Measurement done on 2 3B parameter models on A100 with the only difference being the attention layer, with prefill length of 2048)*
+*(Measured above is a 3B-parameter models on an A100, with prefill length of 2048.)*
 
 ### Features
 
