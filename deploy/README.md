@@ -4,7 +4,7 @@
 This directory contains example code to train, generate, serve a power-retention-backed model.
 
 ![generation](./generation_time.png)
-*(Cumulative token generation time for PowerCoder, with and without chunking enabled )*
+*(Cumulative token generation time for PowerCoder and a Transformer model with exact same setup)*
 
 All examples here uses [PowerCoder](https://huggingface.co/manifestai/powercoder-3b), which is a Llama-based model adapted from *bigcode/starcoder2-3b* and trained on additional coding data, using power retention.
 
