@@ -22,9 +22,7 @@ import time
 import uuid
 from typing import Any, Dict, Generator, List, Optional
 
-import models.powercoder
-
-import models.powercoder
+import models.powercoder  # noqa: F401
 import torch
 import uvicorn
 from fastapi import FastAPI, HTTPException

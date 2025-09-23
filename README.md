@@ -12,15 +12,15 @@ Documentation: [https://m-a-n-i-f-e-s-t.github.io/retention/](https://m-a-n-i-f-
 
 ### Training Performance
 
-On a given flops budget, power-retention-based models achieves the lowest perplexity. 
-![Power Retention is flops optimal on long context training](./plots/flops.png)
+On a wide range of FLOPs budgets, power retention models achieve the lowest perplexity. 
+![Power Retention is FLOP-optimal on long context training](./plots/flops.png)
 
 ### Inference Performance
-On a head-to-head comparison in long-context generation tasks, power-retention-based model like [PowerCoder](HUGGINGFACE_URL) is able to attain 4x token-througput than transformer-based models.
+In a head-to-head comparison on long-context generation, power retention models like [PowerCoder](HUGGINGFACE_URL) are able to attain vastly greater token througput than transformers.
 
-![Power Retention is flops optimal on long context training](./plots/generation_time.png)
+![Power Retention is faster on long context inference](./plots/generation_time.png)
 
-*(Measurement done on 2 3B parameter models on A100 with the only difference being the attention layer, with prefill length of 2048)*
+*(Measured above is a 3B-parameter models on an A100, with prefill length of 2048.)*
 
 ### Features
 
@@ -54,6 +54,9 @@ All other dependencies (PyTorch, Ninja build system, etc.) will be automatically
 
 ## Usage
 
+For practical deployment guideline, refer to [deployment](https://github.com/m-a-n-i-f-e-s-t/retention/tree/main/deploy#readme).
+
+### Training
 The main entry point is the `power_retention` function, which implements symmetric power retention. Here's a basic example:
 
 ```python
@@ -81,6 +84,62 @@ output = power_retention(
     log_G=log_G,          # Optional gating tensor
     deg=2,                # Power parameter p
     chunk_size=128,       # Size of chunks for processing long sequences
+)
+```
+
+### Inference
+
+For inference, a separate interface `power_retention_inference` is provided, which allows for constant-time token generation regardless of context size.
+
+```python
+import torch
+from retention import power_retention_inference
+
+# Create input tensors
+batch_size = 2
+seq_len = 2048
+num_heads = 8
+head_dim = 64
+
+Q = torch.randn(batch_size, 1, num_heads, head_dim, device='cuda', dtype=torch.bfloat16)
+K = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda', dtype=torch.bfloat16)
+V = torch.randn_like(K)
+
+# Optional gating tensor
+log_G = torch.nn.functional.logsigmoid(
+    torch.randn(batch_size, seq_len, num_heads, dtype=torch.float32, device='cuda')
+)
+
+# Calling inference without initial state
+out, state, sum_of_keys = power_retention_inference(
+  Q=Q, K=K, V=V, log_G=log_G,
+  initial_state=None,          # initial state to be queried from
+  sum_of_keys=None,            # initial normalization factor
+  deg=2,                       # Power parameter p
+  switch_over_seq_len=1024     # minimum sequence length to trigger state update
+)
+```
+The first call to `power_retention_inference` usually provides `K`, `V` as the arguments, since there's no initial state. Once the sequence size of `K` and `V` grows beyond the `switch_over_seq_len`, a state update will happen, converting `K, V` of shape `batch x seq_len x num_heads x head_dim` into a state of shape `batch x num_heads x D x head_dim`, where `D` is controlled by the power parameter `p`. `sum_of_keys` are the accumulated normalization factor, having a shape of `batch x num_heads x D`.
+
+You always need to keep the state and sum_of_keys around for the next inference call, just like KV cache. However, they size do not grow with context size, unlike KV cache.
+
+```python
+# Calling inference again, with initial state, with a new key and new value
+Q = torch.randn(batch_size, 1, num_heads, head_dim, device='cuda', dtype=torch.bfloat16)
+K = torch.randn_like(Q)
+V = torch.randn_like(Q)
+
+# Optional gating tensor
+log_G = torch.nn.functional.logsigmoid(
+    torch.randn(batch_size, 1, num_heads, dtype=torch.float32, device='cuda')
+)
+
+new_out, new_state, new_sum_of_keys = power_retention_inference(
+  Q=Q, K=K, V=V, log_G=log_G,
+  initial_state=state,         # initial state to be queried from
+  sum_of_keys=sum_of_keys,     # initial normalization factor
+  deg=2,                       # Power parameter p
+  switch_over_seq_len=1024     # minimum sequence length to trigger state update
 )
 ```
 
@@ -162,39 +221,15 @@ mkdocs gh-deploy
 
 ### Training Example
 
-To immediately see the kernel in action, `cd train` and use:
+To immediately see the kernel in action, `cd deploy` and use:
 
 ```bash
-# Create the dataset first
-python prepare_owt.py
-
-# Single GPU training
 python train.py \
-  --batch_size=32 \
-  --attention_kernel=power \
-  --degree=2 \
-  --chunk_size=128 \
-  --disable_gating=False
-
-# Multi-GPU training with DDP (example with 4 GPUs)
-torchrun --standalone --nproc_per_node=4 train.py \
-  --batch_size=32 \
-  --attention_kernel=power \
-  --degree=2 \
-  --chunk_size=128 \
-  --disable_gating=False
+  --batch_size=2 \
+  --block_size=16384 \
+  --chunk_size=1024
 ```
 
-For distributed training across multiple nodes:
-```bash
-# On the first (master) node with IP 123.456.123.456:
-torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py
-
-# On the worker node:
-torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
-```
-
-Note: If your cluster does not have Infiniband interconnect, prepend `NCCL_IB_DISABLE=1` to the commands.
 
 ## Contributing
 

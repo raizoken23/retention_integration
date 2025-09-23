@@ -7,7 +7,7 @@ import time
 import math
 import json
 from tqdm import tqdm
-import models.powercoder
+import models.powercoder  # noqa: F401
 from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig, TextIteratorStreamer, AutoConfig
 
 GREEN = "\033[32m"
@@ -18,7 +18,7 @@ RESET = "\033[0m"
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate with power attention")
     # model config
-    parser.add_argument('--model', type=str, default='./models/powercoder')
+    parser.add_argument('--model', type=str, default='manifestai/powercoder-3b')
     parser.add_argument('--tokenizer', type=str, default='bigcode/starcoder2-3b')
     parser.add_argument('--chunk-size', type=int, default=None)
     parser.add_argument('--switch-over-seq-len', type=int, default=None)
@@ -61,6 +61,8 @@ def _generate(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, args: argpa
                     attention_mask=inputs.attention_mask,
                     streamer=streamer,
                     eos_token_id=tokenizer.eos_token_id if not args.no_eos else None,
+                    chunk_size=args.chunk_size,
+                    switch_over_seq_len=args.switch_over_seq_len,
                 )
         thread = threading.Thread(target=generate_func)
         thread.start()
@@ -147,6 +149,8 @@ def _generate(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, args: argpa
             inputs.input_ids,
             generation_config=config,
             attention_mask=inputs.attention_mask,
+            chunk_size=args.chunk_size,
+            switch_over_seq_len=args.switch_over_seq_len,
         )
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
@@ -176,12 +180,12 @@ def main():
     assert not (args.input and args.input_file), "Cannot provide both --input and --input_file"
     print(f"{BLUE}args: {GREEN}{args.__dict__}{RESET}")
     if 'power' in args.model:
-        model = AutoModelForCausalLM.from_pretrained(args.model, chunk_size=args.chunk_size, switch_over_seq_len=args.switch_over_seq_len)
+        model = AutoModelForCausalLM.from_pretrained(args.model, trust_remote_code=True)
     else:
         config = AutoConfig.from_pretrained(args.model)
         if args.disable_sliding_window:
             config.sliding_window = None
-        model = AutoModelForCausalLM.from_pretrained(args.model, config=config)
+        model = AutoModelForCausalLM.from_pretrained(args.model, config=config, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     model.eval()
     model.to("cuda")

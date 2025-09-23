@@ -119,8 +119,6 @@ class PowerCoderAttention(nn.Module):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
-        self.chunk_size = config.chunk_size
-        self.switch_over_seq_len = config.switch_over_seq_len
         self.head_dim = getattr(config, "head_dim", None) or config.hidden_size // config.num_attention_heads
         self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads
         self.scaling = self.head_dim**-0.5
@@ -141,6 +139,8 @@ class PowerCoderAttention(nn.Module):
         padding_starts: Optional[torch.Tensor],
         past_key_value: Optional[Cache] = None,
         cache_position: Optional[torch.LongTensor] = None,
+        chunk_size: Optional[int] = None,
+        switch_over_seq_len: Optional[int] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor]]]:
         input_shape = hidden_states.shape[:-1]
@@ -189,9 +189,9 @@ class PowerCoderAttention(nn.Module):
                 sum_of_keys=sum_of_keys,
                 deg=2,
                 scale=self.scaling,
-                switch_over_seq_len=self.switch_over_seq_len,
+                switch_over_seq_len=switch_over_seq_len,
             )
-            if self.switch_over_seq_len is not None and key_len >= self.switch_over_seq_len:
+            if switch_over_seq_len is not None and key_len >= switch_over_seq_len:
                 past_key_value.clean_kv(self.layer_idx)
                 past_key_value.update_state(state, sum_of_keys, self.layer_idx, cache_kwargs)
 
@@ -204,7 +204,8 @@ class PowerCoderAttention(nn.Module):
                 gate_states.transpose(1, 2),
                 deg=2,
                 scale=self.scaling,
-                chunk_size=self.chunk_size, # enable chunked prefilling by default
+                chunk_size=chunk_size, # enable chunked prefilling by default
+                switch_over_seq_len=switch_over_seq_len,
             )
 
         if interpolate_exp_amount == 1:
@@ -243,6 +244,8 @@ class PowerCoderDecoderLayer(GradientCheckpointingLayer):
         use_cache: Optional[bool] = False,
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC
+        chunk_size: Optional[int] = None,
+        switch_over_seq_len: Optional[int] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> tuple[torch.Tensor]:
         residual = hidden_states
@@ -256,6 +259,8 @@ class PowerCoderDecoderLayer(GradientCheckpointingLayer):
             use_cache=use_cache,
             cache_position=cache_position,
             position_embeddings=position_embeddings,
+            chunk_size=chunk_size,
+            switch_over_seq_len=switch_over_seq_len,
             **kwargs,
         )
         hidden_states = residual + hidden_states
@@ -348,6 +353,8 @@ class PowerCoderModel(PowerCoderPreTrainedModel):
         inputs_embeds: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
+        chunk_size: Optional[int] = None,
+        switch_over_seq_len: Optional[int] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPast:
         if (input_ids is None) ^ (inputs_embeds is not None):
@@ -397,6 +404,8 @@ class PowerCoderModel(PowerCoderPreTrainedModel):
                 use_cache=use_cache,
                 cache_position=cache_position,
                 position_embeddings=position_embeddings,
+                chunk_size=chunk_size,
+                switch_over_seq_len=switch_over_seq_len,
                 **kwargs,
             )
 
@@ -414,11 +423,7 @@ class PowerCoderForCausalLM(PowerCoderPreTrainedModel, GenerationMixin):
     _tp_plan = {"lm_head": "colwise_rep"}
     _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
 
-    def __init__(self, config, chunk_size=None, switch_over_seq_len=None):
-        if chunk_size is not None:
-            config.chunk_size = chunk_size
-        if switch_over_seq_len is not None:
-            config.switch_over_seq_len = switch_over_seq_len
+    def __init__(self, config):
         super().__init__(config)
         self.model = PowerCoderModel(config)
         self.vocab_size = config.vocab_size
@@ -446,6 +451,8 @@ class PowerCoderForCausalLM(PowerCoderPreTrainedModel, GenerationMixin):
         use_cache: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
         logits_to_keep: Union[int, torch.Tensor] = 0,
+        chunk_size: Optional[int] = None,
+        switch_over_seq_len: Optional[int] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> CausalLMOutputWithPast:
         r"""
@@ -486,6 +493,10 @@ class PowerCoderForCausalLM(PowerCoderPreTrainedModel, GenerationMixin):
                 Position indices for cached key/value states when using incremental decoding.
             logits_to_keep (`Union[int, torch.Tensor]`, *optional*, defaults to 0):
                 Number of logits to compute from the end of the sequence, or specific indices to compute.
+            chunk_size (`Optional[int]`, *optional*):
+                Chunk size for training and prefilling.
+            switch_over_seq_len (`Optional[int]`, *optional*):
+                Sequence length threshold for state update.
             **kwargs:
                 Additional arguments passed to the underlying model's forward method.
 
@@ -505,6 +516,8 @@ class PowerCoderForCausalLM(PowerCoderPreTrainedModel, GenerationMixin):
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
             cache_position=cache_position,
+            chunk_size=chunk_size,
+            switch_over_seq_len=switch_over_seq_len,
             **kwargs,
         )
 

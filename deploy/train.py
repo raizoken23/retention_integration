@@ -8,8 +8,8 @@ import time
 import gc
 import wandb
 import logging
-from typing import Any, Callable
 import models.powercoder  # noqa: F401
+from typing import Any, Callable
 import datasets
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 
@@ -36,6 +36,7 @@ def parse_args():
     parser.add_argument('--model', type=str, default='./models/powercoder')
     parser.add_argument('--tokenizer', type=str, default='bigcode/starcoder2-3b')
     parser.add_argument('--chunk_size', type=int, default=None, help='Chunk size to use: None for full sequence')
+    parser.add_argument('--switch_over_seq_len', type=int, default=None, help='Sequence length threshold for chunked form')
     # training config
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--block_size', type=int, default=16384)
@@ -137,7 +138,7 @@ def main():
     logger = make_logger(args)
     print(f"{BLUE}args: {GREEN}{args.__dict__}{RESET}")
 
-    cfg = AutoConfig.from_pretrained(args.model, **model_config, chunk_size=args.chunk_size)
+    cfg = AutoConfig.from_pretrained(args.model, **model_config)
     print(f"{BLUE}cfg: {GREEN}{cfg}{RESET}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, use_fast=True)
@@ -179,7 +180,7 @@ def main():
             with torch.autocast(device_type=device, dtype=torch.bfloat16) if not args.no_amp else nullcontext():
                 batch = {k: v.to(device, non_blocking=True) for k, v in get_next_batch().items()}
                 batch_sample.append(tokenizer.decode(batch['input_ids'][0][:20].tolist(), skip_special_tokens=True))
-                outputs = model(**batch)
+                outputs = model(**batch, chunk_size=args.chunk_size, switch_over_seq_len=args.switch_over_seq_len)
                 loss = outputs.loss
             loss.backward()
         if args.grad_clip != 0.0:

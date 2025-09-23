@@ -128,8 +128,6 @@ def main() -> None:
         durations = reconstruct_token_durations(inst)
         if not durations:
             continue
-        # x-axis: token indices starting at 1
-        token_idx = list(range(1, len(durations) + 1))
         # cumulative times (seconds)
         cum = []
         s = 0.0
@@ -137,6 +135,8 @@ def main() -> None:
             s += d
             cum.append(s)
 
+        # x-axis: token indices starting at 1
+        token_idx = list(range(1, len(cum) + 1))
         label = label_for_instance(inst)
 
         # Plot cumulative

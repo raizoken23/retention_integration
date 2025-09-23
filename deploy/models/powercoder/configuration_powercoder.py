@@ -156,8 +156,6 @@ class PowerCoderConfig(PretrainedConfig):
         residual_dropout=0.0,
         embedding_dropout=0.0,
         use_bias=True,
-        chunk_size=None,
-        switch_over_seq_len=None,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -178,8 +176,6 @@ class PowerCoderConfig(PretrainedConfig):
         self.attention_dropout = attention_dropout
         self.residual_dropout = residual_dropout
         self.embedding_dropout = embedding_dropout
-        self.chunk_size = chunk_size
-        self.switch_over_seq_len = switch_over_seq_len
         # Validate the correctness of rotary position embeddings parameters
         # BC: if there is a 'type' field, move it to 'rope_type'.
         if self.rope_scaling is not None and "type" in self.rope_scaling:

@@ -64,7 +64,7 @@ coverage.xml
 docs/_build/
 
 wheelhouse/
-train/out/
+deploy/out/
 
 # Migration scripts
 reports/migrate.py
@@ -77,7 +77,7 @@ tokenizer_config.json
 vocab.json
 *index.json
 generate_stats.json
-train/models/powercoder/*.json
-train/models/powercoder/*.txt
+deploy/models/powercoder/*.json
+deploy/models/powercoder/*.txt
 
 .ipynb_checkpoints/
