@@ -14,7 +14,6 @@ Documentation: [https://m-a-n-i-f-e-s-t.github.io/retention/](https://m-a-n-i-f-
 
 On a given flops budget, power-retention-based models achieves the lowest perplexity. 
 ![Power Retention is flops optimal on long context training](./plots/flops.png)
-[DETAILS TO BE FILLED BY @JACOB]
 
 ### Inference Performance
 On a head-to-head comparison in long-context generation tasks, power-retention-based model like [PowerCoder](HUGGINGFACE_URL) is able to attain 4x token-througput than transformer-based models.
