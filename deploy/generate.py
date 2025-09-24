@@ -26,9 +26,9 @@ def parse_args():
     # generation config
     parser.add_argument('--max-new-tokens', type=int, default=1024)
     parser.add_argument('--max-hours', type=float, default=None)
-    parser.add_argument('--temperature', type=float, default=1.5)
-    parser.add_argument('--top-p', type=float, default=0.2)
-    parser.add_argument('--repetition-penalty', type=float, default=1.2)
+    parser.add_argument('--temperature', type=float, default=1.0)
+    parser.add_argument('--top-p', type=float, default=0.5)
+    parser.add_argument('--repetition-penalty', type=float, default=1.1)
     parser.add_argument('--compile', action='store_true')
     parser.add_argument('--no-stream', action='store_true', default=False)
     parser.add_argument('--no-eos', action='store_true', default=False)
