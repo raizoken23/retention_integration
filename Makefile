@@ -28,6 +28,7 @@ kernel:
 	@python setup.py build_ext --inplace
 
 deps-dev:
+	$(PIP) install torch
 	$(call install_group_deps,dev)
 
 refresh-deps:
